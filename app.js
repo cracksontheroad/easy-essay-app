@@ -200,10 +200,27 @@ function showSetupWizard() {
   const m = $("#setupModal");
   if (!m) return;
   renderSetupWizard();
-  // Open without going through openModalEl so we don't add the
-  // dismiss-on-backdrop binding; this modal is non-dismissable.
   m.classList.add("show");
   document.body.classList.add("modal-open");
+
+  // Wix embeds this app in an auto-grown iframe; scroll the iframe document
+  // to its top so the modal-card is visible above the fold.
+  try { window.scrollTo({ top: 0, behavior: "instant" }); } catch { window.scrollTo(0, 0); }
+
+  // Ask the parent window (Wix) to scroll to where the iframe starts.
+  // Wix sometimes listens for postMessage; the user can also wire a custom
+  // listener in Wix Velo if they want a guaranteed scroll. Failing that,
+  // the most-visible-top positioning above keeps the modal in view inside
+  // the iframe regardless.
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: "easy-essay:scroll-to-iframe" }, "*");
+    }
+  } catch (_) { /* cross-origin is fine */ }
+
+  // Focus the modal-card so screen readers + keyboard users land inside it.
+  const card = $("#setupModal .modal-card");
+  if (card) { card.setAttribute("tabindex", "-1"); card.focus({ preventScroll: true }); }
 }
 
 function closeSetupWizard() {

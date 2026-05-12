@@ -221,10 +221,19 @@ small, .small { font-size: 0.82rem; }
   font-size: 0.95rem;
 }
 
-/* ===== MANDATORY SETUP WIZARD MODAL ===== */
+/* ===== MANDATORY SETUP WIZARD MODAL =====
+ * Pins to TOP of the viewport instead of centred. This matters inside
+ * Wix's auto-grown iframe: a centred modal lands at the middle of the
+ * iframe's full content height (often 2000+px), which can be below the
+ * visible fold. flex-start keeps the card where the user is looking. */
+.setup-modal {
+  align-items: flex-start !important;
+  padding-top: 30px !important;
+}
 .setup-modal .setup-card {
   max-width: 760px;
   text-align: left;
+  margin-top: 0;
 }
 .setup-title {
   font-size: 1.5rem;
