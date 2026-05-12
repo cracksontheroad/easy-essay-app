@@ -1,9 +1,13 @@
 # Wix iframe embed — interim host
 
-**Goal:** the app is live at `https://cracksontheroad.github.io/easy-essay-app/`
-right now. To show it at `https://www.sailedu.co/essay-writing-tool` while we
-wait for the `essay.sailedu.co` CNAME to propagate (up to 48 hours), embed it
-inside a Wix page via an HTML iframe.
+**Goal:** the app is live at `https://sail-essay-writing-tool.netlify.app/`
+(Netlify, with the built-in Notion proxy on the same origin). To show it at
+`https://www.sailedu.co/essay-writing-tool`, embed it inside a Wix page via
+an HTML iframe.
+
+> Earlier version of this guide pointed at the GitHub Pages copy
+> (`cracksontheroad.github.io/easy-essay-app`). That one still works for
+> *static* features but has **no Notion proxy** — use the Netlify URL.
 
 ## Steps in Wix
 
@@ -45,12 +49,12 @@ inside a Wix page via an HTML iframe.
 <body>
   <div class="ee-wrap">
     <iframe class="ee-frame"
-            src="https://cracksontheroad.github.io/easy-essay-app/"
+            src="https://sail-essay-writing-tool.netlify.app/"
             title="University Essay Writing Tool Kit"
             allow="clipboard-read; clipboard-write; fullscreen; web-share"
             referrerpolicy="no-referrer-when-downgrade"
             loading="eager"></iframe>
-    <a class="ee-fallback" href="https://cracksontheroad.github.io/easy-essay-app/" target="_blank" rel="noopener">↗ Open in new tab</a>
+    <a class="ee-fallback" href="https://sail-essay-writing-tool.netlify.app/" target="_blank" rel="noopener">↗ Open in new tab</a>
   </div>
 </body>
 </html>
