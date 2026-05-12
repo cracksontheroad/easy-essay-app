@@ -414,8 +414,7 @@ function wireSetupWizard() {
   });
 
   // Skip everything → also marks setupComplete, but flags both as skipped
-  $("#setupSkipAll")?.addEventListener("click", () => {
-    if (!confirm("Skip the whole setup?\n\nWith no AI key and no Notion, the app's most powerful features won't work. You can still browse the curriculum, read example essays, and use the local linters and templates.\n\nYou can come back and complete this from Settings → Re-open setup wizard.")) return;
+  function skipEverything() {
     state.settings.setupSteps = state.settings.setupSteps || {};
     if (!state.settings.setupSteps.ai) state.settings.setupSteps.aiSkipped = true;
     if (!state.settings.setupSteps.notion) state.settings.setupSteps.notionSkipped = true;
@@ -423,7 +422,16 @@ function wireSetupWizard() {
     saveSettings();
     closeSetupWizard();
     renderHome();
+  }
+
+  $("#setupSkipAll")?.addEventListener("click", () => {
+    if (!confirm("Skip the whole setup?\n\nWith no AI key and no Notion, the app's most powerful features won't work. You can still browse the curriculum, read example essays, and use the local linters and templates.\n\nYou can come back and complete this from Settings → Re-open setup wizard.")) return;
+    skipEverything();
   });
+
+  // Close-X in the corner — same as skip-everything but with a single click.
+  // Acts as a safety valve so the modal is never trapping the user.
+  $("#setupCloseX")?.addEventListener("click", skipEverything);
 }
 
 function wireSetupWizard() {

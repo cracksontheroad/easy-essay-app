@@ -12,7 +12,7 @@
  * old cache is cleaned up on activate.
  * ====================================================================== */
 
-const CACHE_VERSION = "easy-essay-v2.6.1";
+const CACHE_VERSION = "easy-essay-v2.6.2";
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -90,7 +90,14 @@ self.addEventListener("fetch", (event) => {
     return; // let the request go to the network unhindered
   }
 
-  // Cache-first for same-origin assets.
+  // Network-FIRST for HTML / navigation, so every visit can pick up new UI
+  // and fixes immediately (no stale shell). Falls back to cache offline.
+  if (req.mode === "navigate" || (req.destination === "document")) {
+    event.respondWith(networkFirstThenCache(req));
+    return;
+  }
+
+  // Cache-first for same-origin assets (CSS / JS / images / PDFs).
   if (url.origin === self.location.origin) {
     event.respondWith(cacheFirstThenNetwork(req));
     return;
@@ -101,6 +108,21 @@ self.addEventListener("fetch", (event) => {
     fetch(req).catch(() => caches.match(req))
   );
 });
+
+async function networkFirstThenCache(request) {
+  try {
+    const resp = await fetch(request);
+    if (resp && resp.ok) {
+      const cache = await caches.open(SHELL_CACHE);
+      cache.put(request, resp.clone());
+    }
+    return resp;
+  } catch (err) {
+    const cached = await caches.match(request) || await caches.match("/index.html");
+    if (cached) return cached;
+    throw err;
+  }
+}
 
 async function cacheFirstThenNetwork(request) {
   const cached = await caches.match(request);
