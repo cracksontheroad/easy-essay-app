@@ -1,0 +1,44 @@
+# Easy Essay — Netlify deploy config
+# Static site (HTML/CSS/JS, no build step) + 1 serverless function (Notion proxy).
+
+[build]
+  # No build step — this is a static app.
+  command = ""
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  # Use the modern function runtime so Functions v2 (Request/Response) works.
+  node_bundler = "esbuild"
+
+# ---- Headers ----------------------------------------------------------------
+
+# Default cache policy: HTML is always fresh, assets are cache-friendly.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  for = "/service-worker.js"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+# Long-cache static assets that have hashed cache versions managed by the SW.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Security headers for the app itself
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"

@@ -7,19 +7,54 @@
 const NOTION_VERSION = "2022-06-28";
 
 /* Notion API does not allow browser-direct (CORS-blocked) — every request
- * goes through a Cloudflare Worker proxy. The proxy URL is read at call
- * time from window-level config, so it can be set/changed via Settings
- * without a rebuild. If no proxy is configured, the call fails fast with
- * a clear error pointing at the docs. */
+ * goes through a small proxy.
+ *
+ * Resolution order:
+ *   1. window.NOTION_PROXY_URL  (explicit setting, for external proxies like
+ *      Cloudflare Workers / Vercel / Deno)
+ *   2. Same-origin /api/notion   (Netlify Function or Cloudflare Pages Function
+ *      on the same host — preferred)
+ *   3. null  (no proxy → fail fast with a clear error)
+ *
+ * The same-origin path is auto-detected by hitting /api/notion/health on
+ * page init. The result is cached in window._NOTION_SAMEORIGIN_OK so we
+ * don't probe on every call. */
 function notionBaseUrl() {
-  // Priority: explicit settings → window default → null (error)
   try {
     if (window.NOTION_PROXY_URL && typeof window.NOTION_PROXY_URL === "string") {
       return window.NOTION_PROXY_URL.replace(/\/+$/, "");
     }
+    if (window._NOTION_SAMEORIGIN_OK === true) {
+      return window.location.origin + "/api/notion";
+    }
   } catch (_) { /* in case window isn't around (e.g. node test) */ }
   return null;
 }
+
+/* Probe the same-origin proxy once at startup. If /api/notion/health
+ * responds with our service marker, set the flag so notionBaseUrl() can
+ * use it. Runs in the background; the first Notion call after page load
+ * will use whatever's resolved by then. */
+async function _probeSameOriginProxy() {
+  if (typeof window === "undefined") return;
+  if (window._NOTION_SAMEORIGIN_OK !== undefined) return; // already probed
+  try {
+    const r = await fetch(window.location.origin + "/api/notion/health", {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    });
+    if (r.ok) {
+      const j = await r.json().catch(() => null);
+      window._NOTION_SAMEORIGIN_OK = !!(j && j.service === "easy-essay-notion-proxy");
+    } else {
+      window._NOTION_SAMEORIGIN_OK = false;
+    }
+  } catch {
+    window._NOTION_SAMEORIGIN_OK = false;
+  }
+}
+// Probe lazily once the module loads.
+if (typeof window !== "undefined") _probeSameOriginProxy();
 
 const Notion = {
 
@@ -28,10 +63,12 @@ const Notion = {
     const base = notionBaseUrl();
     if (!base) {
       throw new Error(
-        "Notion proxy URL not set. Notion's API blocks browser-direct calls (CORS); " +
-        "deploy the Cloudflare Worker from `cloudflare-worker/notion-proxy.js` " +
-        "and paste its URL into Settings → Notion proxy URL. See " +
-        "docs/CLOUDFLARE-WORKER-DEPLOY.md for the 3-minute walkthrough."
+        "No Notion proxy available. Notion's API blocks browser-direct calls (CORS). " +
+        "Pick one of these:\n" +
+        "  (A) Host the app on Netlify — the included netlify/functions/notion-proxy.mjs " +
+            "becomes available at /api/notion automatically. See docs/NETLIFY-DEPLOY.md.\n" +
+        "  (B) Deploy the Cloudflare Worker from cloudflare-worker/notion-proxy.js and paste " +
+            "its URL into Settings → Notion proxy URL. See docs/CLOUDFLARE-WORKER-DEPLOY.md."
       );
     }
     const res = await fetch(`${base}/v1${path}`, {
