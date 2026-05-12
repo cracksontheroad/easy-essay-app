@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>University Essay Writing Tool Kit — English &amp; Chinese (2nd Ed.)</title>
+  <meta name="description" content="Getting ready for university. ESL guide to AI Prompt Engineering and Academic writing for Chinese students. By Carl Simon Alston, MA Edu." />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#7c3aed" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Easy Essay" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-180.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="brand" id="navHome">
+      <span class="logo-mark"></span>
+      <div>
+        <h1>Easy Essay</h1>
+        <p class="tagline">Writing as organised thinking</p>
+      </div>
+    </div>
+    <nav class="topnav">
+      <button class="nav-btn" data-view="home">Home</button>
+      <button class="nav-btn" data-view="library">My Essays</button>
+      <button class="nav-btn" data-view="curriculum">Curriculum</button>
+      <button class="nav-btn" data-view="examples">Examples</button>
+      <button class="nav-btn" data-view="settings">Settings</button>
+      <button class="nav-btn install-btn" id="installBtn" hidden title="Install as an app">⬇ Install</button>
+    </nav>
+  </header>
+
+  <main id="app">
+
+    <!-- ============ HOME VIEW ============ -->
+    <section id="view-home" class="view active">
+      <div class="hero">
+        <div class="hero-inner">
+          <h2 class="hero-title">University <span class="hl">Essay Writing</span> Tool Kit<br/>English &amp; Chinese (2nd Ed.)</h2>
+          <p class="hero-sub">
+            Getting ready for university. ESL guide to AI Prompt Engineering and Academic writing for Chinese students: <span class="hero-author">by Carl Simon Alston, MA Edu.</span>
+          </p>
+          <div class="hero-cta">
+            <button class="btn btn-primary btn-lg" id="startBtn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1-1.3-1.3z"/><path d="M5 3v4M3 5h4M19 17v4M17 19h4"/></svg>
+              Start a New Essay
+            </button>
+            <button class="btn btn-ghost btn-lg" id="seeFlowBtn">View the Master Flowchart</button>
+          </div>
+          <div class="hero-status" id="heroStatus"></div>
+
+          <div class="hero-qr">
+            <img src="assets/qr-code.png" alt="QR code for https://tinyurl.com/4rtb8nzc"/>
+            <div class="hero-qr-text">
+              <div class="hero-qr-label">Scan or visit</div>
+              <a class="hero-qr-link" href="https://tinyurl.com/4rtb8nzc" target="_blank" rel="noopener">https://tinyurl.com/4rtb8nzc</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="stat-grid" id="statGrid"></div>
+      </div>
+
+      <div class="section" style="padding-top:0;">
+        <h3 class="section-title">The guided process</h3>
+        <p class="section-sub">You don't pick the essay type up-front. The app walks you through decoding the brief, choosing a research question, and <em>then</em> recommends the essay type that best fits.</p>
+        <div class="process-grid" id="processGrid"></div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Essay types you can end up writing</h3>
+        <p class="section-sub">Each type is built on the same core skills — Comprehension, Analysis, Synthesis, Argument — but balances them differently. Step 5 will recommend one based on your chosen research question.</p>
+        <div class="essay-grid" id="essayGrid"></div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">The Master Flowchart</h3>
+        <p class="section-sub">The big-picture map for every essay. You will never get lost if you know where you are on the map.</p>
+        <div class="flow-master">
+          <div class="flow-step"><span class="flow-num">1</span><b>Prewriting</b><br/><small>Understand the prompt, brainstorm, evaluate sources (RADAR)</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><span class="flow-num">2</span><b>Planning</b><br/><small>Craft thesis, create outline, organise evidence</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><span class="flow-num">3</span><b>Writing</b><br/><small>Intro → PEEL body paragraphs → Conclusion</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><span class="flow-num">4</span><b>Polishing</b><br/><small>Argument, paragraphs, language, citations</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><span class="flow-num">5</span><b>Submit</b><br/><small>Formatting, bibliography, plagiarism check</small></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ESSAY WORKSPACE ============ -->
+    <section id="view-essay" class="view">
+      <div class="workspace">
+
+        <aside class="side-rail">
+          <div class="side-head">
+            <button class="btn btn-ghost btn-sm" id="backHomeBtn">← Home</button>
+            <h4 id="ws-essay-type">Essay</h4>
+            <input id="ws-essay-title" placeholder="Untitled essay" class="title-input"/>
+          </div>
+
+          <nav class="stepnav" id="stepnav">
+            <button class="step-link" data-step="0"><span class="dot"></span>1. Setup</button>
+            <button class="step-link" data-step="1"><span class="dot"></span>2. Brief Breakdown</button>
+            <button class="step-link" data-step="2"><span class="dot"></span>3. Rubric</button>
+            <button class="step-link" data-step="3"><span class="dot"></span>4. Research Qs</button>
+            <button class="step-link" data-step="4"><span class="dot"></span>5. Essay Type</button>
+            <button class="step-link" data-step="5"><span class="dot"></span>6. Sources (RADAR)</button>
+            <button class="step-link" data-step="6"><span class="dot"></span>7. Thesis</button>
+            <button class="step-link" data-step="7"><span class="dot"></span>8. Outline</button>
+            <button class="step-link" data-step="8"><span class="dot"></span>9. Drafting (PEEL)</button>
+            <button class="step-link" data-step="9"><span class="dot"></span>10. Polishing</button>
+            <button class="step-link" data-step="10"><span class="dot"></span>11. Final &amp; Export</button>
+          </nav>
+
+          <div class="side-foot">
+            <button class="btn btn-ghost btn-sm" id="saveBtn">💾 Save</button>
+            <button class="btn btn-ghost btn-sm" id="aiCoachBtn">✨ Ask AI Coach</button>
+
+            <div class="sync-panel" id="syncPanel">
+              <div class="sync-row">
+                <span class="sync-dot" id="syncDot"></span>
+                <span class="sync-label" id="syncLabel">Not synced to Notion</span>
+              </div>
+              <div class="sync-actions">
+                <button class="btn btn-primary btn-sm" id="syncPushBtn" title="Push the current essay to Notion">⤴ Push</button>
+                <button class="btn btn-ghost btn-sm" id="syncPullBtn" title="Pull the latest from Notion (overwrites local)">⤵ Pull</button>
+                <button class="btn btn-ghost btn-sm" id="syncOpenBtn" title="Open this essay's Notion page" disabled>↗ Open</button>
+              </div>
+              <p class="sync-detail muted small" id="syncDetail"></p>
+            </div>
+          </div>
+        </aside>
+
+        <div class="stage" id="stage">
+          <!-- Step content rendered here -->
+        </div>
+
+        <aside class="coach-panel" id="coachPanel">
+          <div class="coach-head">
+            <h4>AI Coach</h4>
+            <button class="icon-btn" id="closeCoachBtn" title="Close">×</button>
+          </div>
+          <div class="coach-meta" id="coachMeta"></div>
+          <div class="coach-messages" id="coachMessages"></div>
+          <div class="coach-input">
+            <textarea id="coachInput" placeholder="Ask the coach for feedback, examples, or help…"></textarea>
+            <div class="coach-actions">
+              <select id="coachPreset">
+                <option value="">Quick prompts…</option>
+                <option value="critique">Critique my current step</option>
+                <option value="examples">Show me examples</option>
+                <option value="brainstorm">Help me brainstorm</option>
+                <option value="refine">Refine my thesis</option>
+                <option value="peel">Check this paragraph against PEEL</option>
+                <option value="radar">Evaluate this source with RADAR</option>
+                <option value="counter">Draft counterargument (They Say/I Say)</option>
+              </select>
+              <button class="btn btn-primary btn-sm" id="sendCoachBtn">Send</button>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- ============ LIBRARY VIEW ============ -->
+    <section id="view-library" class="view">
+      <div class="section">
+        <h2 class="section-title">My Essays</h2>
+        <p class="section-sub">Drafts saved locally in your browser. You can also push completed work to Notion from the Final step.</p>
+        <div id="libraryList" class="library-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ CURRICULUM VIEW ============ -->
+    <section id="view-curriculum" class="view">
+      <div class="section">
+        <h2 class="section-title">The Curriculum</h2>
+        <p class="section-sub">25 chapters across three parts — Foundation → Application → Mastery. Click any chapter to read the full chapter — goal, key concepts, framework diagram, worked example, and homework.</p>
+        <div id="curriculumList" class="curriculum-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ INFOGRAPHIC LIGHTBOX ============ -->
+    <div id="lightbox" class="modal">
+      <div class="modal-card modal-lg">
+        <button class="icon-btn modal-close" data-close>×</button>
+        <h3 id="lightboxTitle"></h3>
+        <p class="muted" id="lightboxSub"></p>
+        <img id="lightboxImg" class="lightbox-img" alt=""/>
+      </div>
+    </div>
+
+    <!-- ============ EXAMPLES VIEW ============ -->
+    <section id="view-examples" class="view">
+      <div class="section">
+        <h2 class="section-title">Example essays — by academic level</h2>
+        <p class="section-sub">Fully completed walkthroughs of what top-mark essays look like at each level. Use the level selector to switch between Foundation, Undergraduate, Postgraduate, and Doctoral.</p>
+
+        <div class="level-tabs" id="levelTabs"></div>
+        <div id="examplePanel"></div>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS VIEW ============ -->
+    <section id="view-settings" class="view">
+      <div class="section">
+        <h2 class="section-title">Settings</h2>
+        <p class="section-sub">Your API keys are stored only in your browser (localStorage). Nothing is sent to any server except the provider you call.</p>
+
+        <div class="settings-grid">
+
+          <div class="card">
+            <h3>AI Provider</h3>
+            <p class="muted">Choose which AI powers the coach.</p>
+            <label class="field">
+              <span>Active provider</span>
+              <select id="set-provider">
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="openai">OpenAI (GPT)</option>
+                <option value="gemini">Google Gemini</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Model</span>
+              <select id="set-model"></select>
+            </label>
+
+            <div class="api-key-row" data-provider="anthropic">
+              <label class="field">
+                <span>Anthropic API key</span>
+                <input type="password" id="key-anthropic" placeholder="sk-ant-..." autocomplete="off"/>
+              </label>
+              <p class="muted small">Get a key from <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a>. Uses the Messages API with <code>anthropic-dangerous-direct-browser-access</code>.</p>
+            </div>
+
+            <div class="api-key-row" data-provider="openai">
+              <label class="field">
+                <span>OpenAI API key</span>
+                <input type="password" id="key-openai" placeholder="sk-..." autocomplete="off"/>
+              </label>
+              <p class="muted small">Get a key from <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a>.</p>
+            </div>
+
+            <div class="api-key-row" data-provider="gemini">
+              <label class="field">
+                <span>Gemini API key</span>
+                <input type="password" id="key-gemini" placeholder="AIza..." autocomplete="off"/>
+              </label>
+              <p class="muted small">Get a key from <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a>.</p>
+            </div>
+
+            <div class="row">
+              <button class="btn btn-primary" id="saveSettingsBtn">Save settings</button>
+              <button class="btn btn-ghost" id="testAiBtn">Test AI connection</button>
+            </div>
+            <p id="aiTestStatus" class="status-line"></p>
+          </div>
+
+          <div class="card">
+            <h3>Cost-saving (Phase 4)</h3>
+            <p class="muted">Defaults are tuned for student budgets. Disable any toggle if you want maximum quality at maximum cost.</p>
+
+            <label class="field" style="display:flex; align-items:center; gap:10px;">
+              <input type="checkbox" id="set-routing"/>
+              <span style="margin:0;">Task-based routing — use the cheap model for routine tasks; escalate to the premium model only for thesis stress-tests, fallacy scans, and counter-arguments.</span>
+            </label>
+
+            <label class="field" style="display:flex; align-items:center; gap:10px;">
+              <input type="checkbox" id="set-caching"/>
+              <span style="margin:0;">Anthropic prompt caching — reuses the system prompt for 5 min, ~90% cheaper on cache hits. (No effect on OpenAI/Gemini.)</span>
+            </label>
+
+            <label class="field" style="display:flex; align-items:center; gap:10px;">
+              <input type="checkbox" id="set-trim"/>
+              <span style="margin:0;">Conversation-history trimming — keep the last 6 coach turns verbatim, summarise older turns.</span>
+            </label>
+
+            <label class="field"><span>Premium model — used only for thesis critique, fallacy scan, counter-argument generation</span>
+              <select id="set-premium-model"></select>
+            </label>
+
+            <div class="row">
+              <button class="btn btn-primary" id="saveCostSettingsBtn">Save cost settings</button>
+            </div>
+            <p id="costSettingsStatus" class="status-line"></p>
+          </div>
+
+          <div class="card">
+            <h3>Integrity detection (Phase 3 — BYO API)</h3>
+            <p class="muted">Bring your own API key for similarity / AI-text detection. The "Run Integrity Check" button on the Final step will submit your draft to the provider and render a Turnitin-style report.</p>
+
+            <label class="field"><span>Provider</span>
+              <select id="set-detect-provider">
+                <option value="">(none — local declaration only)</option>
+                <option value="originality.ai">Originality.ai (AI + plagiarism)</option>
+                <option value="gptzero">GPTZero (AI only)</option>
+                <option value="copyleaks">Copyleaks (AI + plagiarism)</option>
+              </select>
+            </label>
+
+            <label class="field"><span>API key</span>
+              <input type="password" id="set-detect-key" placeholder="(provider-specific)" autocomplete="off"/>
+            </label>
+
+            <p class="muted small" id="detectProviderHint"></p>
+
+            <div class="row">
+              <button class="btn btn-primary" id="saveDetectionBtn">Save detection settings</button>
+            </div>
+            <p id="detectionStatus" class="status-line"></p>
+          </div>
+
+          <div class="card">
+            <h3>Notion Integration</h3>
+            <p class="muted">Two-way: push finished essays into your Notion workspace AND pull existing Notion pages in as research sources.</p>
+            <label class="field">
+              <span>Notion Internal Integration Token</span>
+              <input type="password" id="notion-token" placeholder="secret_... or ntn_..." autocomplete="off"/>
+            </label>
+            <label class="field">
+              <span>Default parent page ID (optional)</span>
+              <input type="text" id="notion-parent" placeholder="32-char page ID with dashes"/>
+            </label>
+            <p class="muted small">
+              Create an internal integration at
+              <a href="https://www.notion.so/profile/integrations" target="_blank">notion.so/profile/integrations</a>,
+              then share the parent page with the integration.
+              Browser-side Notion calls go through <code>https://api.notion.com</code> — your token is stored locally only.
+            </p>
+            <div class="row">
+              <button class="btn btn-primary" id="saveNotionBtn">Save Notion settings</button>
+              <button class="btn btn-ghost" id="testNotionBtn">Test Notion connection</button>
+            </div>
+            <p id="notionTestStatus" class="status-line"></p>
+
+            <hr style="border:0; border-top:1px solid var(--line); margin:18px 0;"/>
+
+            <h4 style="margin-bottom:6px;">📚 Set up academic workspace</h4>
+            <p class="muted small">One-time setup. Creates four databases under your parent page that will last from high school through university and beyond:</p>
+            <ul class="muted small" style="margin:8px 0 10px 18px; line-height:1.65;">
+              <li><b>📝 Essay Library</b> — every essay, with type / status / level / due-date / grade / citation style</li>
+              <li><b>📖 Source Library</b> — RADAR-evaluated sources you can reuse across essays</li>
+              <li><b>❓ Research Questions</b> — refined questions you've explored, with SRSAS scores</li>
+              <li><b>🗒️ Study Notes</b> — reading notes, lecture notes, idea fragments, quotes</li>
+            </ul>
+            <div class="row">
+              <button class="btn btn-primary" id="bootstrapNotionBtn">⊕ Bootstrap workspace</button>
+              <span id="bootstrapStatusInline" class="muted small"></span>
+            </div>
+            <div id="bootstrapLog" class="bootstrap-log"></div>
+          </div>
+
+          <div class="card">
+            <h3>Data &amp; Privacy</h3>
+            <p class="muted">All essays and keys live in your browser. Use these tools to back up or wipe.</p>
+            <div class="row">
+              <button class="btn btn-ghost" id="exportDataBtn">Export all essays (JSON)</button>
+              <button class="btn btn-ghost" id="importDataBtn">Import essays</button>
+              <button class="btn btn-danger" id="wipeBtn">Wipe everything</button>
+              <input type="file" id="importFile" accept="application/json" hidden/>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ TOAST ============ -->
+  <div id="toast" class="toast"></div>
+
+  <!-- ============ FLOWCHART MODAL ============ -->
+  <div id="flowModal" class="modal">
+    <div class="modal-card modal-lg">
+      <button class="icon-btn modal-close" data-close>×</button>
+      <h3>The Essay Writing Master Flowchart</h3>
+      <p class="muted">The overarching map for the entire writing process.</p>
+      <figure class="flow-figure">
+        <img src="assets/infographics/master-flowchart.jpg" alt="The Essay Writing Master Flowchart" id="flowImg"/>
+        <figcaption class="muted small">Click image to enlarge.</figcaption>
+      </figure>
+      <details class="ch-tldr" style="margin-top:14px;">
+        <summary>Plain-text version (for accessibility / copy)</summary>
+        <pre class="ascii-flow" id="asciiFlow"></pre>
+      </details>
+    </div>
+  </div>
+
+  <!-- ============ CHAPTER DETAIL MODAL ============ -->
+  <div id="chapterModal" class="modal">
+    <div class="modal-card modal-lg">
+      <button class="icon-btn modal-close" data-close>×</button>
+      <div id="chapterModalBody"></div>
+    </div>
+  </div>
+
+  <script src="methodology.js"></script>
+  <script src="outlines.js"></script>
+  <script src="samples.js"></script>
+  <script src="chapters.js"></script>
+  <script src="chapter-full-text.js"></script>
+  <script src="local-checks.js"></script>
+  <script src="ai-providers.js"></script>
+  <script src="detection.js"></script>
+  <script src="notion.js"></script>
+  <script src="notion-sync.js"></script>
+  <script src="app.js"></script>
+
+  <!-- PWA bootstrap: service worker + Install button + iOS hint ----------- -->
+  <script>
+    // Register the service worker on supported browsers + HTTPS / localhost.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js")
+          .then(reg => console.log("SW registered:", reg.scope))
+          .catch(err => console.warn("SW registration failed:", err));
+      });
+    }
+
+    // Capture Chrome / Edge / Android install prompts. iOS uses its own flow.
+    let _deferredInstall = null;
+    const installBtn = document.getElementById("installBtn");
+    window.addEventListener("beforeinstallprompt", (ev) => {
+      ev.preventDefault();
+      _deferredInstall = ev;
+      if (installBtn) installBtn.hidden = false;
+    });
+    window.addEventListener("appinstalled", () => {
+      if (installBtn) installBtn.hidden = true;
+      _deferredInstall = null;
+    });
+    installBtn?.addEventListener("click", async () => {
+      if (_deferredInstall) {
+        _deferredInstall.prompt();
+        const { outcome } = await _deferredInstall.userChoice;
+        if (outcome === "accepted") installBtn.hidden = true;
+        _deferredInstall = null;
+      } else if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+        // iOS doesn't expose a prompt — show a brief hint instead.
+        alert("To install on iPhone / iPad: tap the Share button (square with arrow up), then choose 'Add to Home Screen'.");
+      }
+    });
+    // Show the iOS hint button if on iOS Safari and not already standalone.
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)
+        && !window.matchMedia("(display-mode: standalone)").matches
+        && !window.navigator.standalone) {
+      if (installBtn) installBtn.hidden = false;
+    }
+  </script>
+</body>
+</html>
