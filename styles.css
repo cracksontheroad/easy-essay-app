@@ -221,30 +221,40 @@ small, .small { font-size: 0.82rem; }
   font-size: 0.95rem;
 }
 
-/* ===== MANDATORY SETUP WIZARD (home hero) ===== */
-.hero-setup {
-  max-width: 880px;
-  margin: 28px auto 24px;
-  padding: 26px 28px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
+/* ===== MANDATORY SETUP WIZARD MODAL ===== */
+.setup-modal .setup-card {
+  max-width: 760px;
   text-align: left;
 }
 .setup-title {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
   color: var(--slate-800);
   margin: 0 0 6px;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 .setup-sub {
   color: var(--slate-600);
   font-size: 0.95rem;
-  margin: 0 0 22px;
+  margin: 0 0 12px;
   line-height: 1.55;
 }
+.setup-progress {
+  color: var(--violet-700);
+  font-weight: 600;
+  font-size: 0.86rem;
+  margin: 0 0 20px;
+  padding: 8px 14px;
+  background: var(--violet-50);
+  border-left: 3px solid var(--violet-500);
+  border-radius: 4px;
+}
+.setup-footer {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.setup-footer .row { justify-content: space-between; margin-top: 10px; }
 .setup-steps {
   list-style: none;
   padding: 0;
@@ -341,34 +351,14 @@ small, .small { font-size: 0.82rem; }
   font-size: 0.82rem;
 }
 
-/* Collapsed state for returning users */
-.hero-setup-collapsed {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin: 18px auto 8px;
-  padding: 6px 16px;
-  background: var(--emerald-50);
-  border: 1px solid var(--emerald-50);
-  border-radius: 100px;
-}
-.setup-check {
-  font-weight: 700;
-  color: var(--emerald-500);
-  font-size: 0.86rem;
-}
-.hero-setup-collapsed a { color: var(--violet-700); text-decoration: none; }
-.hero-setup-collapsed a:hover { text-decoration: underline; }
-
-/* Gated CTA — Start a New Essay before setup */
-.btn.locked,
+/* Continue button is disabled until both steps are addressed */
 .btn[disabled] {
   cursor: not-allowed;
   filter: grayscale(0.5);
   opacity: 0.55;
   box-shadow: none;
 }
-.btn.locked:hover, .btn[disabled]:hover {
+.btn[disabled]:hover {
   filter: grayscale(0.5);
 }
 

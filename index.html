@@ -52,96 +52,6 @@
           <p class="hero-sub">
             Getting ready for university. ESL guide to AI Prompt Engineering and Academic writing for Chinese students: <span class="hero-author">by Carl Simon Alston, MA Edu.</span>
           </p>
-          <!-- ============ MANDATORY SETUP WIZARD ============ -->
-          <section class="hero-setup" id="heroSetup">
-            <h3 class="setup-title">Setting up your Essay writing tool</h3>
-            <p class="setup-sub">For maximum impact and best results, set up your preferred AI usage and Notion databases. This is essential for best results and safe synchronising of your data.</p>
-
-            <ol class="setup-steps">
-              <li class="setup-step" data-setup-step="ai">
-                <div class="setup-step-head">
-                  <span class="setup-num">1</span>
-                  <div class="setup-step-text">
-                    <h4>Connect an AI provider <span class="setup-required">required</span></h4>
-                    <p>Powers the coach, research-question generator, fallacy scan, and counter-argument generator.<br/><b>Gemini 2.0 Flash</b> has a free tier that covers most students.</p>
-                  </div>
-                  <div class="setup-step-right">
-                    <span class="setup-status" data-status="ai">Not connected</span>
-                    <button class="btn btn-primary btn-sm setup-toggle" data-toggle="ai">Set up →</button>
-                  </div>
-                </div>
-                <div class="setup-step-body" data-body="ai" hidden>
-                  <label class="field">
-                    <span>Pick a provider</span>
-                    <select id="setup-ai-provider">
-                      <option value="gemini" selected>Google Gemini — free tier (recommended)</option>
-                      <option value="anthropic">Anthropic Claude — paid only</option>
-                      <option value="openai">OpenAI — paid only</option>
-                    </select>
-                  </label>
-                  <label class="field">
-                    <span>Paste your API key</span>
-                    <input type="password" id="setup-ai-key" placeholder="(API key)" autocomplete="off"/>
-                  </label>
-                  <p class="muted small" id="setup-ai-help">
-                    <a id="setup-ai-getkey" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get a free Gemini key →</a>
-                    &nbsp;·&nbsp; Keys are stored in <b>your browser only</b> — never sent anywhere except the provider's own endpoint.
-                  </p>
-                  <div class="row">
-                    <button class="btn btn-primary btn-sm" id="setup-ai-save">Save &amp; test connection</button>
-                  </div>
-                  <p id="setup-ai-result" class="status-line"></p>
-                </div>
-              </li>
-
-              <li class="setup-step" data-setup-step="notion">
-                <div class="setup-step-head">
-                  <span class="setup-num">2</span>
-                  <div class="setup-step-text">
-                    <h4>Connect Notion <span class="setup-recommended">strongly recommended</span></h4>
-                    <p>Notion becomes the permanent home for every essay. You can switch devices, clear your browser, share with a tutor — your work stays safe. Without Notion, essays live in this browser only.</p>
-                  </div>
-                  <div class="setup-step-right">
-                    <span class="setup-status" data-status="notion">Not connected</span>
-                    <button class="btn btn-primary btn-sm setup-toggle" data-toggle="notion">Set up →</button>
-                  </div>
-                </div>
-                <div class="setup-step-body" data-body="notion" hidden>
-                  <label class="field">
-                    <span>1. Notion Integration Token</span>
-                    <input type="password" id="setup-notion-token" placeholder="secret_… or ntn_…" autocomplete="off"/>
-                  </label>
-                  <p class="muted small">
-                    <a href="https://www.notion.so/profile/integrations" target="_blank" rel="noopener">Create an integration at notion.so/profile/integrations →</a> Choose <b>Internal Integration</b>, copy the secret.
-                  </p>
-                  <label class="field">
-                    <span>2. Parent page ID (the Notion page where your essay workspace will live)</span>
-                    <input type="text" id="setup-notion-parent" placeholder="32-character page ID from the URL"/>
-                  </label>
-                  <p class="muted small">
-                    In Notion: open the page you want as the workspace root → click <b>…</b> → <b>Connections</b> → add your integration. Then copy the page's URL — the 32-character string at the end is the page ID.
-                  </p>
-                  <div class="row">
-                    <button class="btn btn-primary btn-sm" id="setup-notion-test">Test connection</button>
-                    <button class="btn btn-primary btn-sm" id="setup-notion-bootstrap" disabled>⊕ Create the 4 databases</button>
-                  </div>
-                  <p id="setup-notion-result" class="status-line"></p>
-                  <div id="setup-notion-log" class="bootstrap-log"></div>
-                  <p class="setup-skip-row">
-                    <a href="#" id="setup-notion-skip" class="muted small">Skip Notion for now — essays stay in this browser only (not recommended)</a>
-                  </p>
-                </div>
-              </li>
-            </ol>
-          </section>
-
-          <!-- collapsed state for returning users -->
-          <div class="hero-setup-collapsed" id="heroSetupCollapsed" hidden>
-            <span class="setup-check">✓ Setup complete</span>
-            <span class="muted small" id="setupCollapsedDetail"></span>
-            <a href="#" id="reopenSetupLink" class="muted small">Change settings</a>
-          </div>
-
           <div class="hero-cta">
             <button class="btn btn-primary btn-lg" id="startBtn">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1-1.3-1.3z"/><path d="M5 3v4M3 5h4M19 17v4M17 19h4"/></svg>
@@ -318,6 +228,14 @@
         <div class="settings-grid">
 
           <div class="card">
+            <h3>Setup wizard</h3>
+            <p class="muted">First-time setup runs automatically. Re-open it here if you want to step through it again — useful for changing providers or pointing at a new Notion workspace.</p>
+            <div class="row">
+              <button class="btn btn-primary" id="reopenSetupWizardBtn">⟲ Re-open setup wizard</button>
+            </div>
+          </div>
+
+          <div class="card">
             <h3>AI Provider</h3>
             <p class="muted">Choose which AI powers the coach.</p>
             <label class="field">
@@ -492,6 +410,101 @@
         <summary>Plain-text version (for accessibility / copy)</summary>
         <pre class="ascii-flow" id="asciiFlow"></pre>
       </details>
+    </div>
+  </div>
+
+  <!-- ============ MANDATORY SETUP WIZARD MODAL ============ -->
+  <div id="setupModal" class="modal setup-modal">
+    <div class="modal-card modal-lg setup-card">
+      <h2 class="setup-title">Setting up your Essay writing tool</h2>
+      <p class="setup-sub">For maximum impact and best results, set up your preferred AI usage and Notion databases. This is essential for best results and safe synchronising of your data.</p>
+      <p class="setup-progress" id="setupProgress"></p>
+
+      <ol class="setup-steps">
+        <li class="setup-step" data-setup-step="ai">
+          <div class="setup-step-head">
+            <span class="setup-num">1</span>
+            <div class="setup-step-text">
+              <h4>Connect an AI provider <span class="setup-required">required</span></h4>
+              <p>Powers the coach, research-question generator, fallacy scan, and counter-argument generator. <b>Gemini 2.0 Flash</b> has a free tier that covers most students.</p>
+            </div>
+            <div class="setup-step-right">
+              <span class="setup-status" data-status="ai">Not connected</span>
+              <button class="btn btn-primary btn-sm setup-toggle" data-toggle="ai">Set up →</button>
+            </div>
+          </div>
+          <div class="setup-step-body" data-body="ai" hidden>
+            <label class="field">
+              <span>Pick a provider</span>
+              <select id="setup-ai-provider">
+                <option value="gemini" selected>Google Gemini — free tier (recommended)</option>
+                <option value="anthropic">Anthropic Claude — paid only</option>
+                <option value="openai">OpenAI — paid only</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Paste your API key</span>
+              <input type="password" id="setup-ai-key" placeholder="(API key)" autocomplete="off"/>
+            </label>
+            <p class="muted small" id="setup-ai-help">
+              <a id="setup-ai-getkey" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get a free Gemini key →</a>
+              &nbsp;·&nbsp; Keys are stored in <b>your browser only</b> — never sent anywhere except the provider's own endpoint.
+            </p>
+            <div class="row">
+              <button class="btn btn-primary btn-sm" id="setup-ai-save">Save &amp; test</button>
+              <a href="#" id="setup-ai-skip" class="muted small">Skip this step</a>
+            </div>
+            <p id="setup-ai-result" class="status-line"></p>
+          </div>
+        </li>
+
+        <li class="setup-step" data-setup-step="notion">
+          <div class="setup-step-head">
+            <span class="setup-num">2</span>
+            <div class="setup-step-text">
+              <h4>Connect Notion <span class="setup-recommended">strongly recommended</span></h4>
+              <p>Notion becomes the permanent home for every essay. You can switch devices, clear your browser, share with a tutor — your work stays safe. Without Notion, essays live in this browser only.</p>
+            </div>
+            <div class="setup-step-right">
+              <span class="setup-status" data-status="notion">Not connected</span>
+              <button class="btn btn-primary btn-sm setup-toggle" data-toggle="notion">Set up →</button>
+            </div>
+          </div>
+          <div class="setup-step-body" data-body="notion" hidden>
+            <label class="field">
+              <span>1. Notion Integration Token</span>
+              <input type="password" id="setup-notion-token" placeholder="secret_… or ntn_…" autocomplete="off"/>
+            </label>
+            <p class="muted small">
+              <a href="https://www.notion.so/profile/integrations" target="_blank" rel="noopener">Create an integration at notion.so/profile/integrations →</a>. Choose <b>Internal Integration</b>, copy the secret.
+            </p>
+            <label class="field">
+              <span>2. Parent page ID (the Notion page where your essay workspace will live)</span>
+              <input type="text" id="setup-notion-parent" placeholder="32-character page ID from the URL"/>
+            </label>
+            <p class="muted small">
+              In Notion: open the page you want as the workspace root → click <b>…</b> → <b>Connections</b> → add your integration. Then copy the page's URL — the 32-character string at the end is the page ID.
+            </p>
+            <div class="row">
+              <button class="btn btn-primary btn-sm" id="setup-notion-test">Test connection</button>
+              <button class="btn btn-primary btn-sm" id="setup-notion-bootstrap" disabled>⊕ Create the 4 databases</button>
+              <a href="#" id="setup-notion-skip" class="muted small">Skip this step</a>
+            </div>
+            <p id="setup-notion-result" class="status-line"></p>
+            <div id="setup-notion-log" class="bootstrap-log"></div>
+          </div>
+        </li>
+      </ol>
+
+      <div class="setup-footer">
+        <p class="muted small" id="setupFooterHelp">
+          You can revisit this any time from <b>Settings → Re-open setup wizard</b>.
+        </p>
+        <div class="row">
+          <button class="btn btn-ghost btn-sm" id="setupSkipAll">Skip everything for now</button>
+          <button class="btn btn-primary btn-lg" id="setupContinue" disabled>Continue to the app →</button>
+        </div>
+      </div>
     </div>
   </div>
 

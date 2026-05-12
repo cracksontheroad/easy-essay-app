@@ -181,60 +181,250 @@ const ICONS = {
   sparkles:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>'
 };
 
-/* ============== MANDATORY SETUP WIZARD (home page) ============== */
+/* ============== MANDATORY SETUP WIZARD MODAL ============== */
+/* Shown on first visit. Forced — backdrop click / Esc cannot dismiss it.
+ * User finishes by clicking either "Continue to the app →" (after at least
+ * one step is addressed) or "Skip everything for now" (explicit acknowledge).
+ * Setting state.settings.setupComplete = true ensures it never auto-shows
+ * again. Re-openable from Settings. */
+
+function setText(el, txt) { if (el) el.textContent = txt; }
+
+function maybeShowSetupWizard() {
+  // Auto-show only once, on the very first visit.
+  if (state.settings.setupComplete) return;
+  showSetupWizard();
+}
+
+function showSetupWizard() {
+  const m = $("#setupModal");
+  if (!m) return;
+  renderSetupWizard();
+  // Open without going through openModalEl so we don't add the
+  // dismiss-on-backdrop binding; this modal is non-dismissable.
+  m.classList.add("show");
+  document.body.classList.add("modal-open");
+}
+
+function closeSetupWizard() {
+  const m = $("#setupModal");
+  if (!m) return;
+  m.classList.remove("show");
+  document.body.classList.remove("modal-open");
+}
+
 function renderSetupWizard() {
   const s = state.settings;
   s.setupSteps = s.setupSteps || {};
-  const aiDone = !!s.setupSteps.ai;
-  const notionDone = !!(s.setupSteps.notion || s.setupSteps.notionSkipped);
+  const aiDone     = !!s.setupSteps.ai;
+  const aiSkipped  = !!s.setupSteps.aiSkipped;
+  const notionDone = !!s.setupSteps.notion;
+  const notionSkip = !!s.setupSteps.notionSkipped;
 
-  const wizard = $("#heroSetup");
-  const collapsed = $("#heroSetupCollapsed");
-  if (!wizard || !collapsed) return;
-
-  // Show collapsed state if AI is done (Notion can be done or skipped).
-  if (aiDone) {
-    wizard.hidden = true;
-    collapsed.hidden = false;
-    const aiLabel = ({ anthropic: "Anthropic", openai: "OpenAI", gemini: "Gemini" })[s.provider] || s.provider;
-    const notionLabel = s.setupSteps.notion ? "Notion synced" : s.setupSteps.notionSkipped ? "Notion skipped (browser-only)" : "no Notion";
-    setText($("#setupCollapsedDetail"), `· ${aiLabel} + ${notionLabel}`);
-  } else {
-    wizard.hidden = false;
-    collapsed.hidden = true;
-  }
-
-  // Status badges per step.
+  // Per-step badges.
   const aiBadge = $('[data-status="ai"]');
   const notionBadge = $('[data-status="notion"]');
   if (aiBadge) {
-    aiBadge.textContent = aiDone ? "✓ Connected" : "Not connected";
-    aiBadge.className = "setup-status " + (aiDone ? "done" : "todo");
+    if (aiDone)        { aiBadge.textContent = "✓ Connected"; aiBadge.className = "setup-status done"; }
+    else if (aiSkipped){ aiBadge.textContent = "Skipped";     aiBadge.className = "setup-status skipped"; }
+    else               { aiBadge.textContent = "Not connected"; aiBadge.className = "setup-status todo"; }
   }
   if (notionBadge) {
-    if (s.setupSteps.notion) {
-      notionBadge.textContent = "✓ Connected";
-      notionBadge.className = "setup-status done";
-    } else if (s.setupSteps.notionSkipped) {
-      notionBadge.textContent = "Skipped";
-      notionBadge.className = "setup-status skipped";
-    } else {
-      notionBadge.textContent = "Not connected";
-      notionBadge.className = "setup-status todo";
-    }
+    if (notionDone)    { notionBadge.textContent = "✓ Connected"; notionBadge.className = "setup-status done"; }
+    else if (notionSkip){notionBadge.textContent = "Skipped";     notionBadge.className = "setup-status skipped"; }
+    else               { notionBadge.textContent = "Not connected"; notionBadge.className = "setup-status todo"; }
   }
 
-  // Gate the Start button: AI is required, Notion is optional.
-  const startBtn = $("#startBtn");
-  if (startBtn) {
-    startBtn.disabled = !aiDone;
-    startBtn.title = aiDone ? "" : "Complete Step 1 (connect an AI provider) first.";
-    startBtn.classList.toggle("locked", !aiDone);
+  // Progress line — "1 of 2 steps addressed".
+  const addressed = (aiDone || aiSkipped ? 1 : 0) + (notionDone || notionSkip ? 1 : 0);
+  setText($("#setupProgress"), `${addressed} of 2 steps addressed — ${addressed === 2 ? "ready to continue." : "complete both to continue, or skip everything."}`);
+
+  // "Continue to the app" button is enabled when both steps have been
+  // addressed (saved OR explicitly skipped). "Skip everything" is always
+  // available below it as a hard escape.
+  const cont = $("#setupContinue");
+  if (cont) {
+    const ready = addressed === 2;
+    cont.disabled = !ready;
+    cont.title = ready ? "" : "Address both steps first (save or skip each one).";
   }
 }
 
-/* Helper used above and elsewhere. */
-function setText(el, txt) { if (el) el.textContent = txt; }
+function wireSetupWizard() {
+  const m = $("#setupModal");
+  if (!m) return;
+
+  // Block Esc from closing it.
+  m.addEventListener("keydown", ev => { if (ev.key === "Escape") ev.preventDefault(); });
+  // Block backdrop click from closing it.
+  m.addEventListener("click", ev => { if (ev.target === m) ev.stopPropagation(); }, true);
+
+  // Step toggles
+  $$(".setup-toggle", m).forEach(btn => {
+    btn.addEventListener("click", () => {
+      const which = btn.dataset.toggle;
+      const body = $(`[data-body="${which}"]`);
+      if (!body) return;
+      const expanding = body.hidden;
+      body.hidden = !body.hidden;
+      btn.textContent = expanding ? "Close ✕" : "Set up →";
+    });
+  });
+
+  // Step 1 — AI provider
+  const aiProvSel = $("#setup-ai-provider");
+  const aiKeyInp  = $("#setup-ai-key");
+  const aiGetKey  = $("#setup-ai-getkey");
+  function syncAIFields() {
+    const p = aiProvSel.value;
+    const urls = {
+      gemini:    { url: "https://aistudio.google.com/app/apikey", label: "Get a free Gemini key →" },
+      anthropic: { url: "https://console.anthropic.com/",         label: "Get an Anthropic key →" },
+      openai:    { url: "https://platform.openai.com/api-keys",   label: "Get an OpenAI key →" }
+    };
+    const u = urls[p] || urls.gemini;
+    if (aiGetKey) { aiGetKey.href = u.url; aiGetKey.textContent = u.label; }
+    if (aiKeyInp) aiKeyInp.value = state.settings.keys[p] || "";
+  }
+  if (aiProvSel) {
+    aiProvSel.value = state.settings.provider || "gemini";
+    syncAIFields();
+    aiProvSel.addEventListener("change", syncAIFields);
+  }
+
+  $("#setup-ai-save")?.addEventListener("click", async () => {
+    const result = $("#setup-ai-result");
+    const provider = aiProvSel.value;
+    const key      = (aiKeyInp.value || "").trim();
+    if (!key) { result.className = "status-line err"; result.textContent = "Paste your API key first."; return; }
+    result.className = "status-line"; result.textContent = "Testing connection…";
+    state.settings.provider = provider;
+    state.settings.keys[provider] = key;
+    saveSettings();
+    try {
+      const out = await AI.test({ provider, model: pickModel("BRIEF_PARSE"), apiKey: key });
+      result.className = "status-line ok";
+      result.textContent = `✓ ${provider} connected. Reply: "${(out || "").slice(0, 60)}"`;
+      state.settings.setupSteps = state.settings.setupSteps || {};
+      state.settings.setupSteps.ai = true;
+      state.settings.setupSteps.aiSkipped = false;
+      saveSettings();
+      renderSetupWizard();
+    } catch (err) {
+      result.className = "status-line err";
+      result.textContent = "Test failed: " + err.message;
+    }
+  });
+
+  $("#setup-ai-skip")?.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    if (!confirm("Skip the AI setup?\n\nWithout an AI key, the coach, research-question generator, fallacy scan, and counter-argument generator will not work. You can still write essays using the local checks and templates, but you'll lose most of the AI-assisted features.\n\nYou can come back and add a key any time.")) return;
+    state.settings.setupSteps = state.settings.setupSteps || {};
+    state.settings.setupSteps.ai = false;
+    state.settings.setupSteps.aiSkipped = true;
+    saveSettings();
+    renderSetupWizard();
+  });
+
+  // Step 2 — Notion
+  const notionTok = $("#setup-notion-token");
+  const notionPar = $("#setup-notion-parent");
+  if (notionTok) notionTok.value = state.settings.notion?.token || "";
+  if (notionPar) notionPar.value = state.settings.notion?.parent || "";
+
+  $("#setup-notion-test")?.addEventListener("click", async () => {
+    const result = $("#setup-notion-result");
+    const token  = (notionTok.value || "").trim();
+    if (!token) { result.className = "status-line err"; result.textContent = "Paste your Notion token first."; return; }
+    result.className = "status-line"; result.textContent = "Testing Notion connection…";
+    try {
+      const me = await Notion.test(token);
+      const name = me.name || (me.bot && me.bot.owner && me.bot.owner.user && me.bot.owner.user.name) || "integration";
+      result.className = "status-line ok";
+      result.textContent = `✓ Connected as ${name}. Now paste the parent page ID and click "Create the 4 databases".`;
+      state.settings.notion = state.settings.notion || {};
+      state.settings.notion.token = token;
+      saveSettings();
+      $("#setup-notion-bootstrap").disabled = false;
+    } catch (err) {
+      result.className = "status-line err";
+      result.textContent = "Test failed: " + err.message;
+    }
+  });
+
+  $("#setup-notion-bootstrap")?.addEventListener("click", async () => {
+    const result = $("#setup-notion-result");
+    const log    = $("#setup-notion-log");
+    const token  = (notionTok.value || "").trim();
+    const parent = (notionPar.value || "").trim();
+    if (!token)  { result.className = "status-line err"; result.textContent = "Token missing."; return; }
+    if (!parent) { result.className = "status-line err"; result.textContent = "Parent page ID missing — copy it from the page URL in Notion."; return; }
+    log.innerHTML = "";
+    result.className = "status-line"; result.textContent = "Creating 4 databases…";
+    state.settings.notion = state.settings.notion || {};
+    state.settings.notion.token  = token;
+    state.settings.notion.parent = parent;
+    saveSettings();
+    try {
+      const r = await Notion.bootstrapWorkspace(token, parent, ({ msg, ok }) => {
+        const line = document.createElement("div");
+        line.className = "bootstrap-line " + (ok ? "ok" : "err");
+        line.textContent = msg;
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+      });
+      state.settings.notion.workspace = { builtAt: Date.now(), databases: r.databases, pages: r.pages };
+      saveSettings();
+      const errs = r.errors.length;
+      if (!errs) {
+        result.className = "status-line ok";
+        result.textContent = "✓ Notion workspace ready — all 4 databases created.";
+        state.settings.setupSteps = state.settings.setupSteps || {};
+        state.settings.setupSteps.notion = true;
+        state.settings.setupSteps.notionSkipped = false;
+        saveSettings();
+        renderSetupWizard();
+      } else {
+        result.className = "status-line err";
+        result.textContent = `${errs} step${errs===1?"":"s"} failed — see log. Common cause: the integration isn't shared with the parent page.`;
+      }
+    } catch (err) {
+      result.className = "status-line err";
+      result.textContent = "Failed: " + err.message;
+    }
+  });
+
+  $("#setup-notion-skip")?.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    if (!confirm("Skip Notion setup?\n\nWithout Notion, your essays will only live in this browser. If you clear the browser, switch devices, or use incognito, your essays will be lost. You can come back and set this up anytime from Settings.")) return;
+    state.settings.setupSteps = state.settings.setupSteps || {};
+    state.settings.setupSteps.notion = false;
+    state.settings.setupSteps.notionSkipped = true;
+    saveSettings();
+    renderSetupWizard();
+  });
+
+  // Continue → marks setupComplete and closes modal
+  $("#setupContinue")?.addEventListener("click", () => {
+    state.settings.setupComplete = true;
+    saveSettings();
+    closeSetupWizard();
+    renderHome();
+    toast("Setup complete — welcome to Easy Essay.");
+  });
+
+  // Skip everything → also marks setupComplete, but flags both as skipped
+  $("#setupSkipAll")?.addEventListener("click", () => {
+    if (!confirm("Skip the whole setup?\n\nWith no AI key and no Notion, the app's most powerful features won't work. You can still browse the curriculum, read example essays, and use the local linters and templates.\n\nYou can come back and complete this from Settings → Re-open setup wizard.")) return;
+    state.settings.setupSteps = state.settings.setupSteps || {};
+    if (!state.settings.setupSteps.ai) state.settings.setupSteps.aiSkipped = true;
+    if (!state.settings.setupSteps.notion) state.settings.setupSteps.notionSkipped = true;
+    state.settings.setupComplete = true;
+    saveSettings();
+    closeSetupWizard();
+    renderHome();
+  });
+}
 
 function wireSetupWizard() {
   const wizard = $("#heroSetup");
@@ -417,9 +607,6 @@ function renderHome() {
     </div>
   `).join("");
   setHTML($("#statGrid"), statHtml);
-
-  // Mandatory setup wizard — render current state + gate the Start button.
-  renderSetupWizard();
 
   // Replaced the 11 process-cards with a single NotebookLM infographic.
   // The img is clickable and opens in the lightbox at full resolution.
@@ -3567,6 +3754,13 @@ function bindGlobal() {
     }
   });
 
+  // Re-open the setup wizard from Settings (does NOT reset stored credentials).
+  $("#reopenSetupWizardBtn")?.addEventListener("click", () => {
+    state.settings.setupComplete = false; // so the wizard can be re-finalised
+    saveSettings();
+    showSetupWizard();
+  });
+
   $("#exportDataBtn").addEventListener("click", () => {
     const blob = JSON.stringify({ essays: state.essays, exportedAt: Date.now() }, null, 2);
     downloadFile(blob, "easy-essay-backup-" + Date.now() + ".json", "application/json");
@@ -3610,6 +3804,7 @@ function bindGlobal() {
 window.addEventListener("DOMContentLoaded", () => {
   loadAll();
   bindGlobal();
-  wireSetupWizard();   // attach wizard handlers once (the markup is in index.html)
+  wireSetupWizard();    // attach wizard handlers once (markup is in index.html)
   renderHome();
+  maybeShowSetupWizard(); // auto-show on first visit only
 });
