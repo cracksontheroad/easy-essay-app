@@ -344,6 +344,13 @@
               <input type="password" id="notion-token" placeholder="secret_... or ntn_..." autocomplete="off"/>
             </label>
             <label class="field">
+              <span>Notion proxy URL <span style="color:var(--red-600); font-weight:600;">required</span></span>
+              <input type="text" id="notion-proxy" placeholder="https://easy-essay-notion-proxy.YOUR-NAME.workers.dev"/>
+            </label>
+            <p class="muted small">
+              Notion's API <b>does not allow browser-direct calls</b>. Deploy the tiny Cloudflare Worker in <code>cloudflare-worker/notion-proxy.js</code> (3-min walkthrough in <code>docs/CLOUDFLARE-WORKER-DEPLOY.md</code>) and paste its URL here.
+            </p>
+            <label class="field">
               <span>Default parent page — paste URL or ID</span>
               <input type="text" id="notion-parent" placeholder="https://www.notion.so/Your-Page-1abc…  (or the 32-char ID)"/>
             </label>
@@ -472,6 +479,13 @@
             </div>
           </div>
           <div class="setup-step-body" data-body="notion" hidden>
+            <label class="field">
+              <span>0. Notion proxy URL <span style="color:var(--red-600); font-weight:600;">required</span></span>
+              <input type="text" id="setup-notion-proxy" placeholder="https://easy-essay-notion-proxy.YOUR-NAME.workers.dev"/>
+            </label>
+            <p class="muted small">
+              Notion's API blocks browser-direct calls (CORS). You need a tiny Cloudflare Worker proxy — <a href="https://github.com/cracksontheroad/easy-essay-app/blob/main/docs/CLOUDFLARE-WORKER-DEPLOY.md" target="_blank" rel="noopener">deploy in 3 minutes →</a>. Paste the Worker URL above.
+            </p>
             <label class="field">
               <span>1. Notion Integration Token</span>
               <input type="password" id="setup-notion-token" placeholder="secret_… or ntn_…" autocomplete="off"/>

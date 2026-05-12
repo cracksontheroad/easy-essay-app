@@ -6,11 +6,35 @@
 
 const NOTION_VERSION = "2022-06-28";
 
+/* Notion API does not allow browser-direct (CORS-blocked) — every request
+ * goes through a Cloudflare Worker proxy. The proxy URL is read at call
+ * time from window-level config, so it can be set/changed via Settings
+ * without a rebuild. If no proxy is configured, the call fails fast with
+ * a clear error pointing at the docs. */
+function notionBaseUrl() {
+  // Priority: explicit settings → window default → null (error)
+  try {
+    if (window.NOTION_PROXY_URL && typeof window.NOTION_PROXY_URL === "string") {
+      return window.NOTION_PROXY_URL.replace(/\/+$/, "");
+    }
+  } catch (_) { /* in case window isn't around (e.g. node test) */ }
+  return null;
+}
+
 const Notion = {
 
   async _req(token, path, init = {}) {
     if (!token) throw new Error("No Notion token. Add one in Settings.");
-    const res = await fetch(`https://api.notion.com/v1${path}`, {
+    const base = notionBaseUrl();
+    if (!base) {
+      throw new Error(
+        "Notion proxy URL not set. Notion's API blocks browser-direct calls (CORS); " +
+        "deploy the Cloudflare Worker from `cloudflare-worker/notion-proxy.js` " +
+        "and paste its URL into Settings → Notion proxy URL. See " +
+        "docs/CLOUDFLARE-WORKER-DEPLOY.md for the 3-minute walkthrough."
+      );
+    }
+    const res = await fetch(`${base}/v1${path}`, {
       ...init,
       headers: {
         "Authorization": `Bearer ${token}`,

@@ -25,7 +25,7 @@ const state = {
     model: { anthropic: "claude-haiku-4-5", openai: "gpt-4o-mini", gemini: "gemini-2.0-flash" },
     premiumModel: { anthropic: "claude-sonnet-4-5", openai: "gpt-4o", gemini: "gemini-1.5-pro" },
     keys:  { anthropic: "", openai: "", gemini: "" },
-    notion: { token: "", parent: "" },
+    notion: { token: "", parent: "", proxyUrl: "" },
     // PHASE 4 — Cost-saving toggles
     routing:        true,   // tier-based model routing
     promptCaching:  true,   // Anthropic ephemeral cache on system prompt
@@ -59,8 +59,14 @@ function loadAll() {
     const a = localStorage.getItem(STORAGE.active);
     if (a) state.current = state.essays.find(x => x.id === a) || null;
   } catch {}
+  // Publish the Notion proxy URL once at startup so notion.js can call it.
+  window.NOTION_PROXY_URL = (state.settings.notion && state.settings.notion.proxyUrl) || "";
 }
-function saveSettings() { localStorage.setItem(STORAGE.settings, JSON.stringify(state.settings)); }
+function saveSettings() {
+  localStorage.setItem(STORAGE.settings, JSON.stringify(state.settings));
+  // Republish the Notion proxy URL so notion.js picks up changes without reload.
+  window.NOTION_PROXY_URL = (state.settings.notion && state.settings.notion.proxyUrl) || "";
+}
 function saveEssays()   { localStorage.setItem(STORAGE.essays, JSON.stringify(state.essays)); }
 function setActive(id)  { localStorage.setItem(STORAGE.active, id || ""); }
 
@@ -343,11 +349,23 @@ function wireSetupWizard() {
   });
 
   // Step 2 — Notion
+  const notionPxy = $("#setup-notion-proxy");
   const notionTok = $("#setup-notion-token");
   const notionPar = $("#setup-notion-parent");
   const parsedLine= $("#setup-notion-parent-parsed");
+  if (notionPxy) notionPxy.value = state.settings.notion?.proxyUrl || "";
   if (notionTok) notionTok.value = state.settings.notion?.token || "";
   if (notionPar) notionPar.value = state.settings.notion?.parent || "";
+
+  // Save the proxy URL on any change so subsequent calls see it.
+  function saveProxyFromSetup() {
+    const url = (notionPxy?.value || "").trim().replace(/\/+$/, "");
+    state.settings.notion = state.settings.notion || {};
+    state.settings.notion.proxyUrl = url;
+    saveSettings();   // also republishes to window.NOTION_PROXY_URL
+  }
+  notionPxy?.addEventListener("input", saveProxyFromSetup);
+  notionPxy?.addEventListener("change", saveProxyFromSetup);
 
   // Live-parse the page URL/ID as the user types so they get instant
   // confirmation that the input is well-formed.
@@ -376,9 +394,14 @@ function wireSetupWizard() {
   }
 
   $("#setup-notion-test")?.addEventListener("click", async () => {
+    saveProxyFromSetup();
+    if (!state.settings.notion.proxyUrl) {
+      setNotionResult("err", "Paste your Cloudflare Worker proxy URL (Step 0) first. Notion's API can't be called directly from a browser.");
+      return;
+    }
     const token  = (notionTok.value || "").trim();
     if (!token) { setNotionResult("err", "Paste your Notion token first."); return; }
-    setNotionResult("", "Testing Notion token…");
+    setNotionResult("", "Testing Notion token via proxy…");
     try {
       const me = await Notion.test(token);
       const name = me.name || (me.bot && me.bot.owner && me.bot.owner.user && me.bot.owner.user.name) || "integration";
@@ -3284,6 +3307,7 @@ function renderSettings() {
   $("#key-gemini").value    = state.settings.keys.gemini    || "";
   $("#notion-token").value  = state.settings.notion.token   || "";
   $("#notion-parent").value = state.settings.notion.parent  || "";
+  if ($("#notion-proxy")) $("#notion-proxy").value = state.settings.notion.proxyUrl || "";
   toggleProviderRows();
 
   // PHASE 4 cost-saving toggles
@@ -3636,8 +3660,9 @@ function bindGlobal() {
     }
   });
   $("#saveNotionBtn").addEventListener("click", () => {
-    state.settings.notion.token  = $("#notion-token").value.trim();
-    state.settings.notion.parent = $("#notion-parent").value.trim();
+    state.settings.notion.token    = $("#notion-token").value.trim();
+    state.settings.notion.parent   = $("#notion-parent").value.trim();
+    state.settings.notion.proxyUrl = ($("#notion-proxy")?.value || "").trim().replace(/\/+$/, "");
     saveSettings(); toast("Notion settings saved.");
   });
   $("#testNotionBtn").addEventListener("click", async () => {
