@@ -1,0 +1,160 @@
+{
+  "name": "Academic Writing Course: Getting Ready for University",
+  "children": [
+    {
+      "name": "Course Philosophy",
+      "children": [
+        {
+          "name": "Writing as Organised Thinking"
+        },
+        {
+          "name": "Physical Architecture of Thought"
+        },
+        {
+          "name": "Thinking Made Visible"
+        }
+      ]
+    },
+    {
+      "name": "Pedagogical Principles",
+      "children": [
+        {
+          "name": "Metacognition Over Memorization"
+        },
+        {
+          "name": "Visual Scaffolding"
+        },
+        {
+          "name": "Mastery Learning"
+        },
+        {
+          "name": "AI as Collaborative Tool"
+        }
+      ]
+    },
+    {
+      "name": "Core Skills",
+      "children": [
+        {
+          "name": "Comprehension"
+        },
+        {
+          "name": "Analysis"
+        },
+        {
+          "name": "Synthesis"
+        },
+        {
+          "name": "Argument"
+        }
+      ]
+    },
+    {
+      "name": "Course Structure",
+      "children": [
+        {
+          "name": "Part I: Foundation",
+          "children": [
+            {
+              "name": "Paragraph PEEL Method"
+            },
+            {
+              "name": "Sound Logic and RADAR"
+            },
+            {
+              "name": "Thesis Construction"
+            }
+          ]
+        },
+        {
+          "name": "Part II: Workshop",
+          "children": [
+            {
+              "name": "Argumentative Essay"
+            },
+            {
+              "name": "Comparative Essay"
+            },
+            {
+              "name": "Analytical Essay"
+            },
+            {
+              "name": "Problem-Solution Essay"
+            }
+          ]
+        },
+        {
+          "name": "Part III: Mastery",
+          "children": [
+            {
+              "name": "Literature Review"
+            },
+            {
+              "name": "Research Proposal"
+            },
+            {
+              "name": "Capstone Project"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Visual System Tools",
+      "children": [
+        {
+          "name": "Master Flowchart"
+        },
+        {
+          "name": "PEEL Diagram"
+        },
+        {
+          "name": "RADAR Checklist"
+        },
+        {
+          "name": "Analysis Pyramid"
+        },
+        {
+          "name": "Synthesis Matrix"
+        }
+      ]
+    },
+    {
+      "name": "Integrated AI Tools",
+      "children": [
+        {
+          "name": "DeepSeek (Brainstorming)"
+        },
+        {
+          "name": "Perplexity (Research)"
+        },
+        {
+          "name": "Quillbot (Editing)"
+        },
+        {
+          "name": "Notion (Organisation)"
+        }
+      ]
+    },
+    {
+      "name": "Assessment and Grading",
+      "children": [
+        {
+          "name": "CEFR Alignment (A1-C2)"
+        },
+        {
+          "name": "Essays (50%)"
+        },
+        {
+          "name": "Coursework (20%)"
+        },
+        {
+          "name": "Homework (20%)"
+        },
+        {
+          "name": "Participation (10%)"
+        }
+      ]
+    }
+  ]
+}
