@@ -221,6 +221,163 @@ small, .small { font-size: 0.82rem; }
   font-size: 0.95rem;
 }
 
+/* ===== MANDATORY SETUP WIZARD (home hero) ===== */
+.hero-setup {
+  max-width: 880px;
+  margin: 28px auto 24px;
+  padding: 26px 28px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  text-align: left;
+}
+.setup-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--slate-800);
+  margin: 0 0 6px;
+  letter-spacing: -0.015em;
+}
+.setup-sub {
+  color: var(--slate-600);
+  font-size: 0.95rem;
+  margin: 0 0 22px;
+  line-height: 1.55;
+}
+.setup-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.setup-step {
+  background: var(--slate-50);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color .15s, background .15s;
+}
+.setup-step:hover { border-color: var(--violet-200); }
+.setup-step-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+}
+.setup-num {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.92rem;
+  box-shadow: 0 4px 10px rgba(139,92,246,0.28);
+}
+.setup-step-text { flex: 1; min-width: 0; }
+.setup-step-text h4 {
+  font-size: 1.0rem;
+  font-weight: 700;
+  color: var(--slate-800);
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.setup-step-text p {
+  margin: 0;
+  color: var(--slate-600);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.setup-step-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.setup-required, .setup-recommended {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+.setup-required { background: var(--red-100); color: var(--red-600); }
+.setup-recommended { background: var(--violet-100); color: var(--violet-700); }
+.setup-status {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+.setup-status.todo { background: var(--slate-100); color: var(--slate-500); }
+.setup-status.done { background: var(--emerald-50); color: var(--emerald-500); }
+.setup-status.skipped { background: var(--amber-50); color: var(--amber-500); }
+
+.setup-step-body {
+  padding: 4px 18px 18px 64px; /* indent past the numbered circle */
+  background: #fff;
+  border-top: 1px solid var(--line);
+}
+.setup-step-body .field { margin-bottom: 10px; }
+.setup-step-body .field > span {
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+}
+.setup-step-body .row { margin-top: 10px; }
+.setup-skip-row {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
+/* Collapsed state for returning users */
+.hero-setup-collapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px auto 8px;
+  padding: 6px 16px;
+  background: var(--emerald-50);
+  border: 1px solid var(--emerald-50);
+  border-radius: 100px;
+}
+.setup-check {
+  font-weight: 700;
+  color: var(--emerald-500);
+  font-size: 0.86rem;
+}
+.hero-setup-collapsed a { color: var(--violet-700); text-decoration: none; }
+.hero-setup-collapsed a:hover { text-decoration: underline; }
+
+/* Gated CTA — Start a New Essay before setup */
+.btn.locked,
+.btn[disabled] {
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  opacity: 0.55;
+  box-shadow: none;
+}
+.btn.locked:hover, .btn[disabled]:hover {
+  filter: grayscale(0.5);
+}
+
+@media (max-width: 640px) {
+  .setup-step-head { flex-direction: column; align-items: stretch; }
+  .setup-step-right { flex-direction: row; align-items: center; justify-content: space-between; }
+  .setup-step-body { padding-left: 18px; }
+}
+
 /* QR-code panel on the home hero */
 .hero-qr {
   margin: 24px auto 0;
