@@ -273,19 +273,18 @@ function wireSetupWizard() {
 
   // Block Esc from closing it.
   m.addEventListener("keydown", ev => { if (ev.key === "Escape") ev.preventDefault(); });
-  // Block backdrop click from closing it.
-  m.addEventListener("click", ev => { if (ev.target === m) ev.stopPropagation(); }, true);
 
-  // Step toggles
-  $$(".setup-toggle", m).forEach(btn => {
-    btn.addEventListener("click", () => {
-      const which = btn.dataset.toggle;
-      const body = $(`[data-body="${which}"]`);
-      if (!body) return;
-      const expanding = body.hidden;
-      body.hidden = !body.hidden;
-      btn.textContent = expanding ? "Close ✕" : "Set up →";
-    });
+  // Set-up / Close toggle on each step (delegation — bulletproof against
+  // cache races and stale handlers).
+  m.addEventListener("click", (ev) => {
+    const toggle = ev.target.closest(".setup-toggle");
+    if (!toggle || !m.contains(toggle)) return;
+    const which = toggle.dataset.toggle;
+    const body  = m.querySelector(`[data-body="${which}"]`);
+    if (!body) return;
+    const expanding = body.hidden;
+    body.hidden = !expanding;
+    toggle.textContent = expanding ? "Close ✕" : "Set up →";
   });
 
   // Step 1 — AI provider
@@ -451,161 +450,9 @@ function wireSetupWizard() {
   $("#setupCloseX")?.addEventListener("click", skipEverything);
 }
 
-function wireSetupWizard() {
-  const wizard = $("#heroSetup");
-  if (!wizard) return;
-
-  // Expand / collapse each step on the "Set up →" button.
-  $$(".setup-toggle", wizard).forEach(btn => {
-    btn.addEventListener("click", () => {
-      const which = btn.dataset.toggle;
-      const body = $(`[data-body="${which}"]`);
-      if (!body) return;
-      const expanding = body.hidden;
-      body.hidden = !body.hidden;
-      btn.textContent = expanding ? "Close ✕" : "Set up →";
-    });
-  });
-
-  // === Step 1 — AI provider setup ===
-  // Pre-fill from existing settings if any.
-  const aiProvSel = $("#setup-ai-provider");
-  const aiKeyInp  = $("#setup-ai-key");
-  const aiGetKey  = $("#setup-ai-getkey");
-  if (aiProvSel && state.settings.provider) {
-    aiProvSel.value = state.settings.provider;
-    if (aiKeyInp) aiKeyInp.value = state.settings.keys[state.settings.provider] || "";
-  }
-  // Update "Get a key" link based on chosen provider.
-  function updateAIHelp() {
-    const p = aiProvSel.value;
-    const urls = {
-      gemini:    { url: "https://aistudio.google.com/app/apikey",   label: "Get a free Gemini key →" },
-      anthropic: { url: "https://console.anthropic.com/",            label: "Get an Anthropic key →" },
-      openai:    { url: "https://platform.openai.com/api-keys",      label: "Get an OpenAI key →" }
-    };
-    const u = urls[p] || urls.gemini;
-    if (aiGetKey) { aiGetKey.href = u.url; aiGetKey.textContent = u.label; }
-    if (aiKeyInp) aiKeyInp.value = state.settings.keys[p] || "";
-  }
-  aiProvSel?.addEventListener("change", updateAIHelp);
-
-  $("#setup-ai-save")?.addEventListener("click", async () => {
-    const result = $("#setup-ai-result");
-    const provider = aiProvSel.value;
-    const key      = (aiKeyInp.value || "").trim();
-    if (!key) { result.className = "status-line err"; result.textContent = "Paste your API key first."; return; }
-    result.className = "status-line"; result.textContent = "Testing connection…";
-    // Save to settings.
-    state.settings.provider = provider;
-    state.settings.keys[provider] = key;
-    saveSettings();
-    // Test.
-    try {
-      const out = await AI.test({ provider, model: pickModel("BRIEF_PARSE"), apiKey: key });
-      result.className = "status-line ok";
-      result.textContent = `✓ ${provider} connected. Reply: "${(out || "").slice(0, 60)}"`;
-      state.settings.setupSteps = state.settings.setupSteps || {};
-      state.settings.setupSteps.ai = true;
-      saveSettings();
-      renderSetupWizard();
-      toast("AI connected — you can now start a new essay.");
-    } catch (err) {
-      result.className = "status-line err";
-      result.textContent = "Test failed: " + err.message;
-    }
-  });
-
-  // === Step 2 — Notion ===
-  // Pre-fill from existing settings if any.
-  const notionTok = $("#setup-notion-token");
-  const notionPar = $("#setup-notion-parent");
-  if (notionTok) notionTok.value = state.settings.notion?.token || "";
-  if (notionPar) notionPar.value = state.settings.notion?.parent || "";
-
-  $("#setup-notion-test")?.addEventListener("click", async () => {
-    const result = $("#setup-notion-result");
-    const token  = (notionTok.value || "").trim();
-    if (!token) { result.className = "status-line err"; result.textContent = "Paste your Notion token first."; return; }
-    result.className = "status-line"; result.textContent = "Testing Notion connection…";
-    try {
-      const me = await Notion.test(token);
-      const name = me.name || (me.bot && me.bot.owner && me.bot.owner.user && me.bot.owner.user.name) || "integration";
-      result.className = "status-line ok";
-      result.textContent = `✓ Connected as ${name}. Now paste the parent page ID and click "Create the 4 databases".`;
-      state.settings.notion = state.settings.notion || {};
-      state.settings.notion.token = token;
-      saveSettings();
-      $("#setup-notion-bootstrap").disabled = false;
-    } catch (err) {
-      result.className = "status-line err";
-      result.textContent = "Test failed: " + err.message;
-    }
-  });
-
-  $("#setup-notion-bootstrap")?.addEventListener("click", async () => {
-    const result = $("#setup-notion-result");
-    const log    = $("#setup-notion-log");
-    const token  = (notionTok.value || "").trim();
-    const parent = (notionPar.value || "").trim();
-    if (!token)  { result.className = "status-line err"; result.textContent = "Token missing."; return; }
-    if (!parent) { result.className = "status-line err"; result.textContent = "Parent page ID missing — copy it from the page URL in Notion."; return; }
-    log.innerHTML = "";
-    result.className = "status-line"; result.textContent = "Creating 4 databases under your parent page…";
-    state.settings.notion = state.settings.notion || {};
-    state.settings.notion.token  = token;
-    state.settings.notion.parent = parent;
-    saveSettings();
-    try {
-      const r = await Notion.bootstrapWorkspace(token, parent, ({ msg, ok }) => {
-        const line = document.createElement("div");
-        line.className = "bootstrap-line " + (ok ? "ok" : "err");
-        line.textContent = msg;
-        log.appendChild(line);
-        log.scrollTop = log.scrollHeight;
-      });
-      state.settings.notion.workspace = { builtAt: Date.now(), databases: r.databases, pages: r.pages };
-      saveSettings();
-      const errs = r.errors.length;
-      if (!errs) {
-        result.className = "status-line ok";
-        result.textContent = "✓ Notion workspace ready — all 4 databases created.";
-        state.settings.setupSteps = state.settings.setupSteps || {};
-        state.settings.setupSteps.notion = true;
-        state.settings.setupSteps.notionSkipped = false;
-        saveSettings();
-        renderSetupWizard();
-        toast("Notion connected — your work will now sync automatically.");
-      } else {
-        result.className = "status-line err";
-        result.textContent = `${errs} step${errs===1?"":"s"} failed — see log. Common cause: the integration isn't shared with the parent page yet.`;
-      }
-    } catch (err) {
-      result.className = "status-line err";
-      result.textContent = "Failed: " + err.message;
-    }
-  });
-
-  $("#setup-notion-skip")?.addEventListener("click", (ev) => {
-    ev.preventDefault();
-    if (!confirm("Skip Notion setup?\n\nWithout Notion, your essays will only live in this browser. If you clear the browser, switch devices, or use incognito, your essays will be lost. You can come back and set this up anytime from Settings.")) return;
-    state.settings.setupSteps = state.settings.setupSteps || {};
-    state.settings.setupSteps.notion = false;
-    state.settings.setupSteps.notionSkipped = true;
-    saveSettings();
-    renderSetupWizard();
-    toast("Notion skipped — you can enable it later from Settings.");
-  });
-
-  // Re-open setup link (visible in collapsed state).
-  $("#reopenSetupLink")?.addEventListener("click", (ev) => {
-    ev.preventDefault();
-    // Reset both step flags so the wizard re-shows; don't lose the data.
-    state.settings.setupSteps = { ai: false, notion: false, notionSkipped: false };
-    saveSettings();
-    renderSetupWizard();
-  });
-}
+// (Duplicate wireSetupWizard removed — was targeting the old #heroSetup
+//  element from the inline-wizard design that has since been replaced
+//  with the #setupModal popup. The function at line ~270 is the live one.)
 
 function renderHome() {
   // dashboard stat cards

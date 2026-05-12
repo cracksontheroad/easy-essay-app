@@ -12,7 +12,7 @@
  * old cache is cleaned up on activate.
  * ====================================================================== */
 
-const CACHE_VERSION = "easy-essay-v2.6.3";
+const CACHE_VERSION = "easy-essay-v2.6.4";
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
