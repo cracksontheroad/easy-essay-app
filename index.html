@@ -344,8 +344,8 @@
               <input type="password" id="notion-token" placeholder="secret_... or ntn_..." autocomplete="off"/>
             </label>
             <label class="field">
-              <span>Default parent page ID (optional)</span>
-              <input type="text" id="notion-parent" placeholder="32-char page ID with dashes"/>
+              <span>Default parent page — paste URL or ID</span>
+              <input type="text" id="notion-parent" placeholder="https://www.notion.so/Your-Page-1abc…  (or the 32-char ID)"/>
             </label>
             <p class="muted small">
               Create an internal integration at
@@ -480,14 +480,16 @@
               <a href="https://www.notion.so/profile/integrations" target="_blank" rel="noopener">Create an integration at notion.so/profile/integrations →</a>. Choose <b>Internal Integration</b>, copy the secret.
             </p>
             <label class="field">
-              <span>2. Parent page ID (the Notion page where your essay workspace will live)</span>
-              <input type="text" id="setup-notion-parent" placeholder="32-character page ID from the URL"/>
+              <span>2. Parent page — paste the full Notion URL or the page ID</span>
+              <input type="text" id="setup-notion-parent" placeholder="https://www.notion.so/Your-Page-1abc…  (or just the 32-char ID)"/>
             </label>
+            <p id="setup-notion-parent-parsed" class="muted small"></p>
             <p class="muted small">
-              In Notion: open the page you want as the workspace root → click <b>…</b> → <b>Connections</b> → add your integration. Then copy the page's URL — the 32-character string at the end is the page ID.
+              In Notion: open the page you want as your workspace root → click <b>…</b> (top-right) → <b>Connections</b> → search for and add your integration. Then click <b>Share</b> → <b>Copy link</b> and paste it above.
             </p>
             <div class="row">
-              <button class="btn btn-primary btn-sm" id="setup-notion-test">Test connection</button>
+              <button class="btn btn-primary btn-sm" id="setup-notion-test">Test token</button>
+              <button class="btn btn-primary btn-sm" id="setup-notion-verify-page">Verify page access</button>
               <button class="btn btn-primary btn-sm" id="setup-notion-bootstrap" disabled>⊕ Create the 4 databases</button>
               <a href="#" id="setup-notion-skip" class="muted small">Skip this step</a>
             </div>

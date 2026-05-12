@@ -345,44 +345,107 @@ function wireSetupWizard() {
   // Step 2 — Notion
   const notionTok = $("#setup-notion-token");
   const notionPar = $("#setup-notion-parent");
+  const parsedLine= $("#setup-notion-parent-parsed");
   if (notionTok) notionTok.value = state.settings.notion?.token || "";
   if (notionPar) notionPar.value = state.settings.notion?.parent || "";
 
+  // Live-parse the page URL/ID as the user types so they get instant
+  // confirmation that the input is well-formed.
+  function updateParsedHint() {
+    if (!notionPar || !parsedLine) return;
+    const raw = (notionPar.value || "").trim();
+    if (!raw) { parsedLine.textContent = ""; parsedLine.className = "muted small"; return; }
+    const id = Notion.parsePageId(raw);
+    if (id) {
+      parsedLine.textContent = `Page ID: ${id}`;
+      parsedLine.className = "status-line ok small";
+    } else {
+      parsedLine.textContent = "Couldn't find a 32-char page ID in that input. Paste the full Notion URL or just the ID.";
+      parsedLine.className = "status-line err small";
+    }
+  }
+  notionPar?.addEventListener("input", updateParsedHint);
+  notionPar?.addEventListener("paste", () => setTimeout(updateParsedHint, 50));
+  updateParsedHint(); // initial
+
+  function setNotionResult(cls, text) {
+    const r = $("#setup-notion-result");
+    if (!r) return;
+    r.className = "status-line " + cls;
+    r.textContent = text;
+  }
+
   $("#setup-notion-test")?.addEventListener("click", async () => {
-    const result = $("#setup-notion-result");
     const token  = (notionTok.value || "").trim();
-    if (!token) { result.className = "status-line err"; result.textContent = "Paste your Notion token first."; return; }
-    result.className = "status-line"; result.textContent = "Testing Notion connection…";
+    if (!token) { setNotionResult("err", "Paste your Notion token first."); return; }
+    setNotionResult("", "Testing Notion token…");
     try {
       const me = await Notion.test(token);
       const name = me.name || (me.bot && me.bot.owner && me.bot.owner.user && me.bot.owner.user.name) || "integration";
-      result.className = "status-line ok";
-      result.textContent = `✓ Connected as ${name}. Now paste the parent page ID and click "Create the 4 databases".`;
+      setNotionResult("ok", `✓ Token works. Connected as ${name}. Now paste your page URL and click "Verify page access".`);
       state.settings.notion = state.settings.notion || {};
       state.settings.notion.token = token;
       saveSettings();
+    } catch (err) {
+      setNotionResult("err", "Token test failed: " + err.message + " — re-check the secret at notion.so/profile/integrations.");
+    }
+  });
+
+  // NEW: explicit page-access verification, before bootstrap. Catches the
+  // most common failure mode (integration not shared with the page).
+  $("#setup-notion-verify-page")?.addEventListener("click", async () => {
+    const token  = (notionTok.value || "").trim();
+    const raw    = (notionPar.value || "").trim();
+    if (!token) { setNotionResult("err", "Paste your Notion token first."); return; }
+    if (!raw)   { setNotionResult("err", "Paste your Notion page URL (or ID) first."); return; }
+    const id = Notion.parsePageId(raw);
+    if (!id)    { setNotionResult("err", "Couldn't find a 32-character page ID in that input. Paste the full Notion URL or the ID."); return; }
+    setNotionResult("", `Checking page ${id}…`);
+    try {
+      // GET /pages/{id} — fails 404 if integration can't see the page.
+      const page = await Notion._req(token, `/pages/${id}`);
+      const title = (function() {
+        const props = page.properties || {};
+        for (const k of Object.keys(props)) {
+          const v = props[k];
+          if (v && v.type === "title" && Array.isArray(v.title)) {
+            return v.title.map(t => t.plain_text || "").join("").trim() || "(untitled)";
+          }
+        }
+        return "(untitled)";
+      })();
+      setNotionResult("ok", `✓ Page found: "${title}". Now click "Create the 4 databases".`);
+      state.settings.notion.parent = raw; // preserve user's input
+      saveSettings();
       $("#setup-notion-bootstrap").disabled = false;
     } catch (err) {
-      result.className = "status-line err";
-      result.textContent = "Test failed: " + err.message;
+      let hint = "";
+      if (/404/.test(err.message)) {
+        hint = ` — most likely cause: the integration isn't shared with this page. In Notion, open the page → click <b>…</b> top-right → <b>Connections</b> → add your integration. Then re-click "Verify page access".`;
+      } else if (/401/.test(err.message)) {
+        hint = ` — token is invalid or revoked. Re-check it.`;
+      }
+      $("#setup-notion-result").innerHTML = `<span class="status-line err">Page-access check failed: ${escapeHtml(err.message)}${hint}</span>`;
     }
   });
 
   $("#setup-notion-bootstrap")?.addEventListener("click", async () => {
-    const result = $("#setup-notion-result");
     const log    = $("#setup-notion-log");
     const token  = (notionTok.value || "").trim();
-    const parent = (notionPar.value || "").trim();
-    if (!token)  { result.className = "status-line err"; result.textContent = "Token missing."; return; }
-    if (!parent) { result.className = "status-line err"; result.textContent = "Parent page ID missing — copy it from the page URL in Notion."; return; }
+    const raw    = (notionPar.value || "").trim();
+    if (!token) { setNotionResult("err", "Token missing."); return; }
+    if (!raw)   { setNotionResult("err", "Page URL / ID missing."); return; }
+    const id = Notion.parsePageId(raw);
+    if (!id)    { setNotionResult("err", "Couldn't extract a 32-char page ID from that input. Paste the full Notion URL or the raw ID."); return; }
+
     log.innerHTML = "";
-    result.className = "status-line"; result.textContent = "Creating 4 databases…";
+    setNotionResult("", "Creating 4 databases under your page…");
     state.settings.notion = state.settings.notion || {};
     state.settings.notion.token  = token;
-    state.settings.notion.parent = parent;
+    state.settings.notion.parent = raw;  // keep the user's input
     saveSettings();
     try {
-      const r = await Notion.bootstrapWorkspace(token, parent, ({ msg, ok }) => {
+      const r = await Notion.bootstrapWorkspace(token, id, ({ msg, ok }) => {
         const line = document.createElement("div");
         line.className = "bootstrap-line " + (ok ? "ok" : "err");
         line.textContent = msg;
@@ -393,20 +456,17 @@ function wireSetupWizard() {
       saveSettings();
       const errs = r.errors.length;
       if (!errs) {
-        result.className = "status-line ok";
-        result.textContent = "✓ Notion workspace ready — all 4 databases created.";
+        setNotionResult("ok", "✓ Notion workspace ready — all 4 databases created.");
         state.settings.setupSteps = state.settings.setupSteps || {};
         state.settings.setupSteps.notion = true;
         state.settings.setupSteps.notionSkipped = false;
         saveSettings();
         renderSetupWizard();
       } else {
-        result.className = "status-line err";
-        result.textContent = `${errs} step${errs===1?"":"s"} failed — see log. Common cause: the integration isn't shared with the parent page.`;
+        setNotionResult("err", `${errs} step${errs===1?"":"s"} failed — see log above. Most common cause: the integration is not shared with the page yet. Click "Verify page access" first.`);
       }
     } catch (err) {
-      result.className = "status-line err";
-      result.textContent = "Failed: " + err.message;
+      setNotionResult("err", "Bootstrap failed: " + err.message);
     }
   });
 
@@ -3594,11 +3654,13 @@ function bindGlobal() {
   // Bootstrap the academic workspace under the configured parent page.
   $("#bootstrapNotionBtn")?.addEventListener("click", async () => {
     const token = $("#notion-token").value.trim();
-    const parent = $("#notion-parent").value.trim();
+    const rawParent = $("#notion-parent").value.trim();
     const logEl = $("#bootstrapLog");
     const inline = $("#bootstrapStatusInline");
-    if (!token)   { inline.textContent = "Add a token + click Save first."; return; }
-    if (!parent)  { inline.textContent = "Add a parent page ID + click Save first."; return; }
+    if (!token)     { inline.textContent = "Add a token + click Save first."; return; }
+    if (!rawParent) { inline.textContent = "Add a parent page URL or ID + click Save first."; return; }
+    const parent = Notion.parsePageId(rawParent);
+    if (!parent)    { inline.textContent = "Couldn't find a 32-char page ID in that input. Paste the full Notion URL or the ID."; return; }
 
     logEl.innerHTML = "";
     inline.textContent = "Building…";

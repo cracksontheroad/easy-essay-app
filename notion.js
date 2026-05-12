@@ -280,13 +280,44 @@ const Notion = {
     return out;
   },
 
-  /* Normalise a Notion page id — accepts dashed or undashed. */
-  _formatId(id) {
-    if (!id) return id;
-    const clean = String(id).replace(/-/g, "").trim();
-    return clean.length === 32
-      ? `${clean.slice(0,8)}-${clean.slice(8,12)}-${clean.slice(12,16)}-${clean.slice(16,20)}-${clean.slice(20,32)}`
-      : id;
+  /* Extract a Notion page UUID from user input. Accepts:
+   *   - 32 hex chars, no dashes      ("abcdef0123456789abcdef0123456789ab")
+   *   - UUID-format with dashes      ("abcdef01-2345-6789-abcd-ef0123456789")
+   *   - Full Notion URL              ("https://www.notion.so/My-Page-abcdef01…")
+   *   - Notion URL with ?pvs=4 / #anchor / extra parameters
+   *
+   * Strategy: strip the URL's query string (`?…`) and fragment (`#…`),
+   * then look for a 32-hex run (with optional dashes in UUID positions).
+   * Returns the canonical dashed UUID, or null if no match. */
+  _extractHexId(input) {
+    if (!input) return null;
+    // Drop everything after ? or #, then trim.
+    const s = String(input).split(/[?#]/)[0].trim();
+    if (!s) return null;
+    // 1) Try UUID-dashed pattern first (handles both raw UUIDs and URLs ending in one).
+    const uuid = s.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+    if (uuid) return uuid[0].toLowerCase();
+    // 2) Fall back to any 32-hex run.
+    const hex = s.match(/[a-f0-9]{32}/i);
+    if (hex) {
+      const h = hex[0].toLowerCase();
+      return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
+    }
+    return null;
+  },
+
+  /* Normalise a Notion page id for API calls. Returns the canonical dashed
+   * form, or the original input if nothing matched (so callers surface a
+   * clean error from Notion itself). */
+  _formatId(input) {
+    const id = Notion._extractHexId(input);
+    return id || input;
+  },
+
+  /* Exposed helper for the UI to validate user input. Returns null when
+   * no valid page ID can be parsed. */
+  parsePageId(input) {
+    return Notion._extractHexId(input);
   },
 
   /* Convert plain text essay content into Notion blocks.
