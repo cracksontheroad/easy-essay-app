@@ -3835,20 +3835,75 @@ function bindGlobal() {
     showSetupWizard();
   });
 
+  // Full backup: essays + settings + integrity metadata. Restorable on any
+  // device, with or without Supabase login.
   $("#exportDataBtn").addEventListener("click", () => {
-    const blob = JSON.stringify({ essays: state.essays, exportedAt: Date.now() }, null, 2);
-    downloadFile(blob, "easy-essay-backup-" + Date.now() + ".json", "application/json");
+    // Scrub anything we never want in a portable file (currently nothing,
+    // but keep this hook so we can mask things like API keys if asked).
+    const exportSettings = JSON.parse(JSON.stringify(state.settings || {}));
+    const blob = JSON.stringify({
+      app:        "easy-essay",
+      version:    2,
+      exportedAt: new Date().toISOString(),
+      settings:   exportSettings,
+      essays:     state.essays || []
+    }, null, 2);
+    const name = "easy-essay-backup-" + new Date().toISOString().replace(/[:.]/g, "-") + ".json";
+    downloadFile(blob, name, "application/json");
+    toast(`Backup saved (${(state.essays||[]).length} essay${(state.essays||[]).length===1?"":"s"} + settings).`);
   });
+
   $("#importDataBtn").addEventListener("click", () => $("#importFile").click());
   $("#importFile").addEventListener("change", async ev => {
     const f = ev.target.files[0]; if (!f) return;
     try {
       const data = JSON.parse(await f.text());
-      if (Array.isArray(data.essays)) {
-        state.essays = state.essays.concat(data.essays.map(e => ({ ...e, id: uid() })));
-        saveEssays(); toast("Imported " + data.essays.length + " essays.");
-      } else toast("Invalid backup file.");
-    } catch (e) { toast("Import failed: " + e.message); }
+
+      // v2 backup (new format) — full settings + essays, preserves IDs
+      if (data && data.app === "easy-essay" && Array.isArray(data.essays)) {
+        const replace = confirm(
+          `Backup contains ${data.essays.length} essay${data.essays.length===1?"":"s"}` +
+          (data.settings ? " + settings" : "") + ".\n\n" +
+          "Click OK to REPLACE everything currently in this browser with the backup.\n" +
+          "Click Cancel to MERGE (keep your current essays, add the backup's as new copies)."
+        );
+
+        if (replace) {
+          // Replace mode — preserve original IDs so server-sync can match
+          state.essays = data.essays;
+          if (data.settings && typeof data.settings === "object") {
+            state.settings = { ...state.settings, ...data.settings };
+          }
+        } else {
+          // Merge mode — give new IDs to the imported essays so they don't
+          // clobber existing ones
+          state.essays = (state.essays || []).concat(
+            data.essays.map(e => ({ ...e, id: uid() }))
+          );
+        }
+        saveSettings();
+        saveEssays();
+        toast(`Imported ${data.essays.length} essay${data.essays.length===1?"":"s"}${data.settings?" + settings":""}.`);
+        renderLibrary();
+        renderHome();
+        return;
+      }
+
+      // v1 backup (legacy) — essays only
+      if (data && Array.isArray(data.essays)) {
+        state.essays = (state.essays || []).concat(
+          data.essays.map(e => ({ ...e, id: uid() }))
+        );
+        saveEssays();
+        toast("Imported " + data.essays.length + " essays (legacy format).");
+        renderLibrary();
+        return;
+      }
+
+      toast("Not a recognisable easy-essay backup file.");
+    } catch (e) {
+      toast("Import failed: " + e.message);
+    }
   });
   $("#wipeBtn").addEventListener("click", () => {
     if (!confirm("Wipe all essays, keys, and Notion settings? This cannot be undone.")) return;
@@ -3874,10 +3929,186 @@ function bindGlobal() {
   });
 }
 
+/* ============== AUTH + CLOUD SYNC (Supabase) ==============
+ *
+ * Anonymous users still get the full app via localStorage. Signed-in users
+ * also push to essay_app.* tables in Supabase, so their work follows them
+ * across devices, browsers, and time. localStorage stays as a write-through
+ * cache so the app remains snappy and works offline.
+ *
+ * Sync is debounced: every save schedules a 1.5s push. Multiple saves in
+ * quick succession only trigger one server call.
+ */
+
+let _pushSettingsTimer = null;
+let _pushEssayTimers = {}; // per-essay debounce
+
+function _debouncePushSettings() {
+  if (!window.Sb || !window.Sb.isSignedIn()) return;
+  clearTimeout(_pushSettingsTimer);
+  _pushSettingsTimer = setTimeout(() => window.Sb.pushSettings(state.settings), 1500);
+}
+function _debouncePushEssay(essay) {
+  if (!window.Sb || !window.Sb.isSignedIn() || !essay || !essay.id) return;
+  clearTimeout(_pushEssayTimers[essay.id]);
+  _pushEssayTimers[essay.id] = setTimeout(() => window.Sb.pushEssay(essay), 1500);
+}
+
+// Patch saveSettings / saveEssays to also push to the server.
+const _origSaveSettings = saveSettings;
+saveSettings = function() {
+  _origSaveSettings.apply(this, arguments);
+  _debouncePushSettings();
+};
+const _origSaveEssays = saveEssays;
+saveEssays = function() {
+  _origSaveEssays.apply(this, arguments);
+  if (state.current) _debouncePushEssay(state.current);
+};
+
+function updateAuthUI() {
+  const signInBtn = $("#signInBtn");
+  const userBtn   = $("#userMenuBtn");
+  if (!signInBtn || !userBtn) return;
+  const user = window.Sb?.currentUser();
+  if (user) {
+    const name = user.user_metadata?.name || user.email?.split("@")[0] || "Account";
+    signInBtn.hidden = true;
+    userBtn.hidden = false;
+    userBtn.textContent = "👤 " + name;
+    userBtn.title = `Signed in as ${user.email || "user"}\nClick to sign out`;
+  } else {
+    signInBtn.hidden = false;
+    userBtn.hidden = true;
+  }
+}
+
+function openAuthModal() {
+  // Refresh the iframe-warning banner each open
+  const banner = $("#authIframeBanner");
+  if (banner) banner.hidden = !window.Sb?.inIframe();
+  setText($("#authResult"), "");
+  openModalEl("authModal");
+  setTimeout(() => $("#authEmailInput")?.focus(), 60);
+}
+function closeAuthModal() { closeModalEl("authModal"); }
+
+async function _handleMagicLink() {
+  const r = $("#authResult");
+  const email = ($("#authEmailInput")?.value || "").trim();
+  r.className = "status-line";
+  r.textContent = "Sending…";
+  try {
+    await window.Sb.signInWithMagicLink(email);
+    r.className = "status-line ok";
+    r.textContent = "✓ Magic link sent. Check your email (and spam folder). Clicking the link signs you in here.";
+  } catch (err) {
+    r.className = "status-line err";
+    r.textContent = "Failed: " + err.message;
+  }
+}
+async function _handleGoogleSignIn() {
+  const r = $("#authResult");
+  r.className = "status-line"; r.textContent = "Opening Google…";
+  try {
+    const res = await window.Sb.signInWithGoogle();
+    if (res?.newTab) {
+      r.className = "status-line";
+      r.textContent = "Google sign-in opened in a new tab. Come back here once you're signed in.";
+    }
+  } catch (err) {
+    r.className = "status-line err";
+    r.textContent = "Failed: " + err.message;
+  }
+}
+
+async function _handleSignOut() {
+  if (!confirm("Sign out? Your local browser copy stays, but auto-sync stops until you sign in again.")) return;
+  await window.Sb.signOut();
+  toast("Signed out.");
+  updateAuthUI();
+}
+
+/* On first successful sign-in, migrate any local-only essays/settings to
+ * the new account so the user doesn't lose anything they wrote before
+ * signing up. */
+async function _handleFirstSignIn(user) {
+  // Pull what's on the server first
+  const remote = await window.Sb.pullAll();
+  const haveLocalEssays = (state.essays || []).length > 0;
+  const haveRemoteEssays = (remote.essays || []).length > 0;
+
+  if (!haveRemoteEssays && haveLocalEssays) {
+    // Brand-new account with existing local data → upload it
+    const { migratedEssays, settingsUploaded } = await window.Sb.migrateLocal(state.settings, state.essays);
+    toast(`Welcome — saved ${migratedEssays} essay${migratedEssays===1?"":"s"} to your account.`);
+    return;
+  }
+
+  if (haveRemoteEssays) {
+    // Server has data — pull it down and merge
+    // For simplicity (and safety), server is authoritative.
+    if (remote.settings) {
+      state.settings = { ...state.settings, ...remote.settings };
+      _origSaveSettings();
+    }
+    // Merge essays: server wins on conflicts; keep local-only ones too
+    const localById = new Map((state.essays || []).map(e => [e.id, e]));
+    for (const re of remote.essays) localById.set(re.id, re);
+    state.essays = Array.from(localById.values());
+    saveEssaysLocal();
+    toast(`Welcome back — restored ${remote.essays.length} essay${remote.essays.length===1?"":"s"} from your account.`);
+    // After pulling, upload any local-only essays the server doesn't have
+    const remoteIds = new Set(remote.essays.map(e => e.id));
+    const localOnly = (state.essays || []).filter(e => !remoteIds.has(e.id));
+    if (localOnly.length) await window.Sb.pushEssaysBatch(localOnly);
+  } else {
+    // No data either side — fresh account, nothing to do
+    toast("Signed in.");
+  }
+  renderLibrary();
+  renderHome();
+}
+
+// Save-essays without triggering the sync push (used when restoring from
+// server to avoid an immediate echo back).
+function saveEssaysLocal() {
+  localStorage.setItem(STORAGE.essays, JSON.stringify(state.essays));
+}
+
+function wireAuth() {
+  if (!window.Sb) return;
+  window.Sb.init();
+
+  window.addEventListener("supabase:ready", () => updateAuthUI());
+  window.addEventListener("supabase:auth-change", async (ev) => {
+    const user = ev.detail?.user;
+    updateAuthUI();
+    if (user && ev.detail?.event === "SIGNED_IN") {
+      closeAuthModal();
+      await _handleFirstSignIn(user);
+    } else if (ev.detail?.event === "SIGNED_OUT") {
+      // Clear in-memory state? Keep local — user might sign back in.
+    }
+  });
+
+  $("#signInBtn")?.addEventListener("click", openAuthModal);
+  $("#authCloseX")?.addEventListener("click", closeAuthModal);
+  $("#authMagicBtn")?.addEventListener("click", _handleMagicLink);
+  $("#authGoogleBtn")?.addEventListener("click", _handleGoogleSignIn);
+  $("#userMenuBtn")?.addEventListener("click", _handleSignOut);
+
+  // Pressing Enter in the email field submits the magic link
+  $("#authEmailInput")?.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") { ev.preventDefault(); _handleMagicLink(); }
+  });
+}
+
 /* ============== INIT ============== */
 window.addEventListener("DOMContentLoaded", () => {
   loadAll();
   bindGlobal();
+  wireAuth();           // Supabase init + auth UI (works whether or not user is signed in)
   wireSetupWizard();    // attach wizard handlers once (markup is in index.html)
   renderHome();
   maybeShowSetupWizard(); // auto-show on first visit only
