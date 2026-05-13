@@ -29,7 +29,32 @@ const AI_MODELS = {
     { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash (free tier)" },
     { id: "gemini-1.5-pro",   label: "Gemini 1.5 Pro" },
     { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash (fast)" }
+  ],
+  deepseek: [
+    { id: "deepseek-chat",     label: "DeepSeek-V3 Chat (cheap + capable, great for students)" },
+    { id: "deepseek-reasoner", label: "DeepSeek-R1 Reasoner (deep reasoning, slower)" }
+  ],
+  kimi: [
+    { id: "kimi-latest",        label: "Kimi (latest, auto-selects best)" },
+    { id: "moonshot-v1-8k",     label: "Moonshot-v1 8k (cheapest)" },
+    { id: "moonshot-v1-32k",    label: "Moonshot-v1 32k" },
+    { id: "moonshot-v1-128k",   label: "Moonshot-v1 128k (long context)" }
+  ],
+  custom: [
+    // Custom provider has user-supplied base URL + model name.
+    // Models populated from settings.custom.model at runtime.
   ]
+};
+
+/* Base URLs for OpenAI-compatible providers. The `custom` provider reads
+ * its base URL from state.settings.custom.baseUrl at call time. */
+const PROVIDER_BASE_URLS = {
+  openai:   "https://api.openai.com/v1",
+  deepseek: "https://api.deepseek.com/v1",
+  // Moonshot has a global (.ai) and a mainland-China (.cn) endpoint.
+  // We default to .cn because the primary student audience is in CN;
+  // overseas users with an .ai key can override via custom-base-url in settings.
+  kimi:     "https://api.moonshot.cn/v1"
 };
 
 /* USD per 1M tokens. Approximate public prices as of mid-2025.
@@ -44,7 +69,18 @@ const AI_PRICING = {
   "gpt-4-turbo":              { in: 10.00, out: 30.00 },
   "gemini-2.0-flash":         { in:  0.075, out: 0.30, freeTier: true },
   "gemini-1.5-flash":         { in:  0.075, out: 0.30 },
-  "gemini-1.5-pro":           { in:  1.25, out:  5.00 }
+  "gemini-1.5-pro":           { in:  1.25, out:  5.00 },
+  // DeepSeek — public USD pricing (cache-miss input). Cache hits ≈ 50% cheaper.
+  "deepseek-chat":            { in:  0.27, out:  1.10 },
+  "deepseek-reasoner":        { in:  0.55, out:  2.19 },
+  // Moonshot (Kimi) — converted from CNY at ~7:1.
+  "kimi-latest":              { in:  1.65, out:  1.65 },
+  "moonshot-v1-8k":           { in:  1.65, out:  1.65 },
+  "moonshot-v1-32k":          { in:  3.40, out:  3.40 },
+  "moonshot-v1-128k":         { in:  8.40, out:  8.40 }
+  // Custom provider: pricing is provider-specific; treated as $0 in the
+  // cost panel with a note. Users can edit AI_PRICING locally if they want
+  // accurate cost tracking.
 };
 
 /* PHASE 4.2 — Task-based routing.
@@ -74,9 +110,12 @@ const TASK_ROUTING = {
 
 // Per provider, which model to use for each tier.
 const TIER_MODEL = {
-  anthropic: { ROUTINE: "claude-haiku-4-5", PREMIUM: "claude-sonnet-4-5" },
-  openai:    { ROUTINE: "gpt-4o-mini",      PREMIUM: "gpt-4o" },
-  gemini:    { ROUTINE: "gemini-2.0-flash", PREMIUM: "gemini-1.5-pro" }
+  anthropic: { ROUTINE: "claude-haiku-4-5",  PREMIUM: "claude-sonnet-4-5" },
+  openai:    { ROUTINE: "gpt-4o-mini",       PREMIUM: "gpt-4o" },
+  gemini:    { ROUTINE: "gemini-2.0-flash",  PREMIUM: "gemini-1.5-pro" },
+  deepseek:  { ROUTINE: "deepseek-chat",     PREMIUM: "deepseek-reasoner" },
+  kimi:      { ROUTINE: "moonshot-v1-8k",    PREMIUM: "moonshot-v1-32k" },
+  custom:    { ROUTINE: "",                  PREMIUM: "" }  // resolved from settings.custom.model
 };
 
 /* PHASE 4.4 — Conversation-history trim.
@@ -112,9 +151,15 @@ function calculateCost(model, usage) {
 const AI = {
 
   /* Resolve a model from { provider, task, override }.
-   * override wins; otherwise routing map picks the tier model. */
+   * override wins; otherwise routing map picks the tier model.
+   * For the `custom` provider, falls back to window.AI_CUSTOM_MODEL
+   * (set from settings) since there's no built-in tier map. */
   resolveModel({ provider, task, override }) {
     if (override) return override;
+    if (provider === "custom") {
+      try { if (window.AI_CUSTOM_MODEL) return window.AI_CUSTOM_MODEL; } catch (_) {}
+      throw new Error("Custom provider: model name not set. Configure it in Settings → AI Provider → Custom.");
+    }
     if (!task) return null;
     const tier = TASK_ROUTING[task] || "ROUTINE";
     return TIER_MODEL[provider]?.[tier] || null;
@@ -130,13 +175,35 @@ const AI = {
     if (!resolvedModel) throw new Error(`No model and no task routing for ${provider}.`);
 
     let result;
-    if (provider === "anthropic") result = await AI._anthropic({ model: resolvedModel, apiKey, system, messages, cacheable });
-    else if (provider === "openai") result = await AI._openai({ model: resolvedModel, apiKey, system, messages });
-    else if (provider === "gemini") result = await AI._gemini({ model: resolvedModel, apiKey, system, messages });
-    else throw new Error(`Unknown provider: ${provider}`);
+    if (provider === "anthropic") {
+      result = await AI._anthropic({ model: resolvedModel, apiKey, system, messages, cacheable });
+    } else if (provider === "openai") {
+      result = await AI._openaiCompat({ baseUrl: PROVIDER_BASE_URLS.openai, model: resolvedModel, apiKey, system, messages });
+    } else if (provider === "gemini") {
+      result = await AI._gemini({ model: resolvedModel, apiKey, system, messages });
+    } else if (provider === "deepseek") {
+      result = await AI._openaiCompat({ baseUrl: PROVIDER_BASE_URLS.deepseek, model: resolvedModel, apiKey, system, messages });
+    } else if (provider === "kimi") {
+      // Allow per-user override of the Moonshot base URL (.cn vs .ai).
+      let kimiBase = PROVIDER_BASE_URLS.kimi;
+      try {
+        if (window.AI_KIMI_BASE_URL) kimiBase = window.AI_KIMI_BASE_URL;
+      } catch (_) {}
+      result = await AI._openaiCompat({ baseUrl: kimiBase, model: resolvedModel, apiKey, system, messages });
+    } else if (provider === "custom") {
+      // Custom provider: base URL + model come from settings, surfaced at
+      // window-level so this module doesn't have to import app state.
+      let customBase = "";
+      try { customBase = (window.AI_CUSTOM_BASE_URL || "").replace(/\/+$/, ""); } catch (_) {}
+      if (!customBase) throw new Error("Custom provider: base URL not set. Configure it in Settings → AI Provider → Custom.");
+      result = await AI._openaiCompat({ baseUrl: customBase, model: resolvedModel, apiKey, system, messages });
+    } else {
+      throw new Error(`Unknown provider: ${provider}`);
+    }
 
     result.model = resolvedModel;
     result.cost = calculateCost(resolvedModel, result.usage);
+    result.provider = provider;
     return result;
   },
 
@@ -189,13 +256,20 @@ const AI = {
     };
   },
 
-  /* ---------- OpenAI Chat Completions ---------- */
-  async _openai({ model, apiKey, system, messages }) {
+  /* ---------- Generic OpenAI-compatible chat completions ----------
+   * Works for OpenAI itself plus any compatible API:
+   *   DeepSeek, Moonshot/Kimi, OpenRouter, Together, Groq, Ollama,
+   *   vLLM, LM Studio, local servers, etc.
+   *
+   * `baseUrl` should end at /v1 (e.g. https://api.deepseek.com/v1).
+   * `/chat/completions` is appended. */
+  async _openaiCompat({ baseUrl, model, apiKey, system, messages }) {
     const allMessages = [];
     if (system) allMessages.push({ role: "system", content: system });
     for (const m of messages) allMessages.push({ role: m.role, content: m.content });
 
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const url = baseUrl.replace(/\/+$/, "") + "/chat/completions";
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -210,7 +284,9 @@ const AI = {
     });
     if (!res.ok) {
       const txt = await res.text();
-      throw new Error(`OpenAI ${res.status}: ${txt.slice(0, 300)}`);
+      // Identify the host in the error message for clearer diagnosis.
+      const host = (() => { try { return new URL(url).host; } catch { return baseUrl; } })();
+      throw new Error(`${host} ${res.status}: ${txt.slice(0, 300)}`);
     }
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content?.trim() || "";
@@ -219,10 +295,15 @@ const AI = {
       text,
       raw: data,
       usage: {
-        input_tokens:  u.prompt_tokens     || 0,
-        output_tokens: u.completion_tokens || 0
+        input_tokens:  u.prompt_tokens     || u.input_tokens  || 0,
+        output_tokens: u.completion_tokens || u.output_tokens || 0
       }
     };
+  },
+
+  /* Back-compat alias — anything that still calls _openai() works. */
+  async _openai(args) {
+    return AI._openaiCompat({ baseUrl: PROVIDER_BASE_URLS.openai, ...args });
   },
 
   /* ---------- Google Gemini ---------- */

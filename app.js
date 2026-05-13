@@ -22,9 +22,28 @@ const state = {
     provider: "gemini",
     // PHASE 4.2 — Per-tier model picks. Routine = cheapest competent; Premium
     // = stronger model for thesis stress-test, fallacy scan, counter-arg.
-    model: { anthropic: "claude-haiku-4-5", openai: "gpt-4o-mini", gemini: "gemini-2.0-flash" },
-    premiumModel: { anthropic: "claude-sonnet-4-5", openai: "gpt-4o", gemini: "gemini-1.5-pro" },
-    keys:  { anthropic: "", openai: "", gemini: "" },
+    model: {
+      anthropic: "claude-haiku-4-5",
+      openai:    "gpt-4o-mini",
+      gemini:    "gemini-2.0-flash",
+      deepseek:  "deepseek-chat",
+      kimi:      "moonshot-v1-8k"
+    },
+    premiumModel: {
+      anthropic: "claude-sonnet-4-5",
+      openai:    "gpt-4o",
+      gemini:    "gemini-1.5-pro",
+      deepseek:  "deepseek-reasoner",
+      kimi:      "moonshot-v1-32k"
+    },
+    keys:  { anthropic: "", openai: "", gemini: "", deepseek: "", kimi: "", custom: "" },
+    // Custom (BYO OpenAI-compatible) provider config — used only when
+    // provider === "custom". Lets students plug in OpenRouter, Ollama,
+    // Zhipu (GLM), Yi, Qwen, any self-hosted vLLM, etc.
+    custom: { baseUrl: "", model: "" },
+    // Override for Moonshot (Kimi) — students with an api.moonshot.ai key
+    // (international) can paste it here instead of using the .cn default.
+    kimiBaseUrl: "",
     notion: { token: "", parent: "", proxyUrl: "" },
     // PHASE 4 — Cost-saving toggles
     routing:        true,   // tier-based model routing
@@ -60,12 +79,19 @@ function loadAll() {
     if (a) state.current = state.essays.find(x => x.id === a) || null;
   } catch {}
   // Publish the Notion proxy URL once at startup so notion.js can call it.
-  window.NOTION_PROXY_URL = (state.settings.notion && state.settings.notion.proxyUrl) || "";
+  window.NOTION_PROXY_URL    = (state.settings.notion && state.settings.notion.proxyUrl) || "";
+  window.AI_CUSTOM_BASE_URL  = (state.settings.custom && state.settings.custom.baseUrl) || "";
+  window.AI_CUSTOM_MODEL     = (state.settings.custom && state.settings.custom.model)   || "";
+  window.AI_KIMI_BASE_URL    = state.settings.kimiBaseUrl || "";
 }
 function saveSettings() {
   localStorage.setItem(STORAGE.settings, JSON.stringify(state.settings));
   // Republish the Notion proxy URL so notion.js picks up changes without reload.
   window.NOTION_PROXY_URL = (state.settings.notion && state.settings.notion.proxyUrl) || "";
+  // Republish AI custom-provider settings + Kimi base override.
+  window.AI_CUSTOM_BASE_URL = (state.settings.custom && state.settings.custom.baseUrl) || "";
+  window.AI_CUSTOM_MODEL    = (state.settings.custom && state.settings.custom.model)   || "";
+  window.AI_KIMI_BASE_URL   = state.settings.kimiBaseUrl || "";
 }
 function saveEssays()   { localStorage.setItem(STORAGE.essays, JSON.stringify(state.essays)); }
 function setActive(id)  { localStorage.setItem(STORAGE.active, id || ""); }
@@ -300,13 +326,30 @@ function wireSetupWizard() {
   function syncAIFields() {
     const p = aiProvSel.value;
     const urls = {
-      gemini:    { url: "https://aistudio.google.com/app/apikey", label: "Get a free Gemini key →" },
-      anthropic: { url: "https://console.anthropic.com/",         label: "Get an Anthropic key →" },
-      openai:    { url: "https://platform.openai.com/api-keys",   label: "Get an OpenAI key →" }
+      gemini:    { url: "https://aistudio.google.com/app/apikey",            label: "Get a free Gemini key →" },
+      deepseek:  { url: "https://platform.deepseek.com/api_keys",            label: "Get a DeepSeek key →" },
+      kimi:      { url: "https://platform.moonshot.cn/console/api-keys",     label: "Get a Moonshot/Kimi key →" },
+      anthropic: { url: "https://console.anthropic.com/",                    label: "Get an Anthropic key →" },
+      openai:    { url: "https://platform.openai.com/api-keys",              label: "Get an OpenAI key →" },
+      custom:    { url: "#",                                                 label: "Configure in Settings → AI Provider → Custom" }
     };
     const u = urls[p] || urls.gemini;
     if (aiGetKey) { aiGetKey.href = u.url; aiGetKey.textContent = u.label; }
-    if (aiKeyInp) aiKeyInp.value = state.settings.keys[p] || "";
+    if (aiKeyInp) {
+      aiKeyInp.value = state.settings.keys[p] || "";
+      // Custom provider's auth also goes in this same field for the wizard's
+      // simplicity; the wizard's Save persists it to keys.custom, and
+      // Settings has the dedicated row.
+      aiKeyInp.placeholder = (p === "custom") ? "(your provider's bearer token)" : "(API key)";
+    }
+    // Surface custom-provider's required fields when chosen — helper text.
+    const helpEl = $("#setup-ai-help");
+    if (helpEl && p === "custom") {
+      helpEl.innerHTML = "Custom (OpenAI-compatible) requires <b>Base URL</b> + <b>Model name</b> in Settings → AI Provider → Custom. Set them there first, then paste the bearer token above and click Save.";
+    } else if (helpEl) {
+      // Restore default help (Get-a-free-key link + privacy note).
+      helpEl.innerHTML = `<a id="setup-ai-getkey" href="${escapeHtml(u.url)}" target="_blank" rel="noopener">${escapeHtml(u.label)}</a> &nbsp;·&nbsp; Keys are stored in <b>your browser only</b> — never sent anywhere except the provider's own endpoint.`;
+    }
   }
   if (aiProvSel) {
     aiProvSel.value = state.settings.provider || "gemini";
@@ -3341,6 +3384,12 @@ function renderSettings() {
   $("#key-anthropic").value = state.settings.keys.anthropic || "";
   $("#key-openai").value    = state.settings.keys.openai    || "";
   $("#key-gemini").value    = state.settings.keys.gemini    || "";
+  if ($("#key-deepseek"))   $("#key-deepseek").value   = state.settings.keys.deepseek || "";
+  if ($("#key-kimi"))       $("#key-kimi").value       = state.settings.keys.kimi     || "";
+  if ($("#key-custom"))     $("#key-custom").value     = state.settings.keys.custom   || "";
+  if ($("#kimi-base-url"))  $("#kimi-base-url").value  = state.settings.kimiBaseUrl   || "";
+  if ($("#custom-base-url"))$("#custom-base-url").value= (state.settings.custom && state.settings.custom.baseUrl) || "";
+  if ($("#custom-model"))   $("#custom-model").value   = (state.settings.custom && state.settings.custom.model)   || "";
   $("#notion-token").value  = state.settings.notion.token   || "";
   $("#notion-parent").value = state.settings.notion.parent  || "";
   if ($("#notion-proxy")) $("#notion-proxy").value = state.settings.notion.proxyUrl || "";
@@ -3368,17 +3417,36 @@ function renderSettings() {
 
 function populateModels() {
   const provider = $("#set-provider").value;
-  // Primary (routine) model select
   const sel = $("#set-model");
-  setHTML(sel, AI_MODELS[provider].map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.label)}</option>`).join(""));
-  sel.value = state.settings.model[provider] || AI_MODELS[provider][0].id;
-  // Premium model select (PHASE 4.2)
+  if (!sel) return;
+
+  if (provider === "custom") {
+    // No built-in models — the user types the model name in #custom-model.
+    // Disable the routine-model dropdown to make it clear this is overridden.
+    const m = (state.settings.custom && state.settings.custom.model) || "";
+    setHTML(sel, `<option value="${escapeHtml(m)}">${escapeHtml(m || "(set the model name in the Custom row below)")}</option>`);
+    sel.disabled = true;
+    // Same treatment for the premium picker.
+    const psel = $("#set-premium-model");
+    if (psel) {
+      setHTML(psel, `<option value="${escapeHtml(m)}">${escapeHtml(m || "(custom — same as routine)")}</option>`);
+      psel.disabled = true;
+    }
+    return;
+  }
+
+  sel.disabled = false;
+  const list = AI_MODELS[provider] || [];
+  setHTML(sel, list.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.label)}</option>`).join(""));
+  sel.value = state.settings.model[provider] || list[0]?.id || "";
+
   const psel = $("#set-premium-model");
   if (psel) {
-    setHTML(psel, AI_MODELS[provider].map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.label)}</option>`).join(""));
+    psel.disabled = false;
+    setHTML(psel, list.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.label)}</option>`).join(""));
     psel.value = (state.settings.premiumModel && state.settings.premiumModel[provider])
                  || (window.TIER_MODEL?.[provider]?.PREMIUM)
-                 || AI_MODELS[provider][0].id;
+                 || list[0]?.id || "";
   }
 }
 
@@ -3641,10 +3709,21 @@ function bindGlobal() {
   $("#set-provider").addEventListener("change", () => { populateModels(); toggleProviderRows(); });
   $("#saveSettingsBtn").addEventListener("click", () => {
     state.settings.provider = $("#set-provider").value;
-    state.settings.model[state.settings.provider] = $("#set-model").value;
+    // For custom provider, $("#set-model") shows the user-typed model from
+    // #custom-model; for built-ins, it's the dropdown value.
+    if (state.settings.provider !== "custom") {
+      state.settings.model[state.settings.provider] = $("#set-model").value;
+    }
     state.settings.keys.anthropic = $("#key-anthropic").value.trim();
     state.settings.keys.openai    = $("#key-openai").value.trim();
     state.settings.keys.gemini    = $("#key-gemini").value.trim();
+    state.settings.keys.deepseek  = ($("#key-deepseek")?.value || "").trim();
+    state.settings.keys.kimi      = ($("#key-kimi")?.value     || "").trim();
+    state.settings.keys.custom    = ($("#key-custom")?.value   || "").trim();
+    state.settings.kimiBaseUrl    = ($("#kimi-base-url")?.value || "").trim().replace(/\/+$/, "");
+    state.settings.custom         = state.settings.custom || { baseUrl: "", model: "" };
+    state.settings.custom.baseUrl = ($("#custom-base-url")?.value || "").trim().replace(/\/+$/, "");
+    state.settings.custom.model   = ($("#custom-model")?.value   || "").trim();
     saveSettings(); toast("Settings saved.");
   });
 

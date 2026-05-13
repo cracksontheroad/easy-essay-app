@@ -241,9 +241,12 @@
             <label class="field">
               <span>Active provider</span>
               <select id="set-provider">
+                <option value="gemini">Google Gemini — free tier (recommended)</option>
+                <option value="deepseek">DeepSeek — very cheap, mainland-China friendly</option>
+                <option value="kimi">Moonshot Kimi — popular in China</option>
                 <option value="anthropic">Anthropic (Claude)</option>
                 <option value="openai">OpenAI (GPT)</option>
-                <option value="gemini">Google Gemini</option>
+                <option value="custom">Custom (OpenAI-compatible) — OpenRouter, Ollama, Zhipu, Yi, Qwen, etc.</option>
               </select>
             </label>
             <label class="field">
@@ -273,6 +276,42 @@
                 <input type="password" id="key-gemini" placeholder="AIza..." autocomplete="off"/>
               </label>
               <p class="muted small">Get a key from <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a>.</p>
+            </div>
+
+            <div class="api-key-row" data-provider="deepseek">
+              <label class="field">
+                <span>DeepSeek API key</span>
+                <input type="password" id="key-deepseek" placeholder="sk-..." autocomplete="off"/>
+              </label>
+              <p class="muted small">Get a key from <a href="https://platform.deepseek.com/api_keys" target="_blank">platform.deepseek.com/api_keys</a>. DeepSeek-V3 Chat costs ~$0.27/M input · $1.10/M output — the cheapest premium-class model. <b>Works from mainland China without VPN.</b></p>
+            </div>
+
+            <div class="api-key-row" data-provider="kimi">
+              <label class="field">
+                <span>Moonshot (Kimi) API key</span>
+                <input type="password" id="key-kimi" placeholder="sk-..." autocomplete="off"/>
+              </label>
+              <label class="field">
+                <span>Base URL <span class="muted">(optional override — default is the mainland-China endpoint)</span></span>
+                <input type="text" id="kimi-base-url" placeholder="https://api.moonshot.cn/v1  (or https://api.moonshot.ai/v1 for international keys)"/>
+              </label>
+              <p class="muted small">Get a key from <a href="https://platform.moonshot.cn/console/api-keys" target="_blank">platform.moonshot.cn</a> (CN) or <a href="https://platform.moonshot.ai/console/api-keys" target="_blank">platform.moonshot.ai</a> (international). Free tier covers most student use.</p>
+            </div>
+
+            <div class="api-key-row" data-provider="custom">
+              <label class="field">
+                <span>Base URL <span style="color:var(--red-600); font-weight:600;">required</span></span>
+                <input type="text" id="custom-base-url" placeholder="https://openrouter.ai/api/v1  /  http://localhost:11434/v1  /  …"/>
+              </label>
+              <label class="field">
+                <span>Model name <span style="color:var(--red-600); font-weight:600;">required</span></span>
+                <input type="text" id="custom-model" placeholder="anthropic/claude-3.5-sonnet  /  llama3.1:8b  /  glm-4-plus  /  …"/>
+              </label>
+              <label class="field">
+                <span>API key</span>
+                <input type="password" id="key-custom" placeholder="Bearer token (paste your provider's key)" autocomplete="off"/>
+              </label>
+              <p class="muted small">Works with any OpenAI-compatible <code>/chat/completions</code> endpoint: <a href="https://openrouter.ai" target="_blank">OpenRouter</a>, <a href="https://ollama.com" target="_blank">Ollama</a>, vLLM, LM Studio, Zhipu/GLM, Yi, Qwen, Together, Groq, etc. The app sends <code>POST {baseUrl}/chat/completions</code> with a Bearer auth header.</p>
             </div>
 
             <div class="row">
@@ -445,9 +484,12 @@
             <label class="field">
               <span>Pick a provider</span>
               <select id="setup-ai-provider">
-                <option value="gemini" selected>Google Gemini — free tier (recommended)</option>
+                <option value="gemini" selected>Google Gemini — free tier (recommended for international students)</option>
+                <option value="deepseek">DeepSeek — very cheap, works in mainland China without VPN</option>
+                <option value="kimi">Moonshot Kimi — free tier, popular with Chinese students</option>
                 <option value="anthropic">Anthropic Claude — paid only</option>
-                <option value="openai">OpenAI — paid only</option>
+                <option value="openai">OpenAI (GPT) — paid only</option>
+                <option value="custom">Custom (OpenAI-compatible) — OpenRouter, Ollama, GLM, Yi, Qwen, etc.</option>
               </select>
             </label>
             <label class="field">
