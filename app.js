@@ -3378,6 +3378,38 @@ function exampleHtml(ex) {
 }
 
 /* ============== SETTINGS ============== */
+/* Banner in the Settings → Notion card that mirrors the setup wizard's
+ * proxy auto-detection. Goes green when /api/notion/health responds,
+ * stays violet if the user has pasted an external proxy URL, goes red
+ * if neither is available. */
+function updateSettingsNotionProxyBanner() {
+  const banner = $("#settings-notion-proxy-banner");
+  if (!banner) return;
+  const sameOrigin = window._NOTION_SAMEORIGIN_OK === true;
+  const external   = !!(state.settings.notion?.proxyUrl);
+  if (sameOrigin && !external) {
+    banner.innerHTML = "✓ <b>Built-in proxy active</b> at <code>/api/notion</code>. No configuration needed.";
+    banner.style.background = "var(--emerald-50)";
+    banner.style.borderLeftColor = "var(--emerald-500)";
+    banner.style.color = "var(--emerald-500)";
+  } else if (external) {
+    banner.innerHTML = `Using your external proxy: <code>${escapeHtml(state.settings.notion.proxyUrl)}</code>`;
+    banner.style.background = "var(--violet-50)";
+    banner.style.borderLeftColor = "var(--violet-500)";
+    banner.style.color = "var(--slate-700)";
+  } else if (sameOrigin === undefined) {
+    banner.textContent = "Checking connection method…";
+    banner.style.background = "var(--slate-50)";
+    banner.style.borderLeftColor = "var(--violet-500)";
+    banner.style.color = "var(--slate-500)";
+  } else {
+    banner.innerHTML = "No proxy available. The built-in proxy needs the app to be hosted on Netlify (or you can paste an external proxy URL in Advanced below).";
+    banner.style.background = "var(--red-50)";
+    banner.style.borderLeftColor = "var(--red-500)";
+    banner.style.color = "var(--red-600)";
+  }
+}
+
 function renderSettings() {
   $("#set-provider").value = state.settings.provider;
   populateModels();
@@ -3393,6 +3425,10 @@ function renderSettings() {
   $("#notion-token").value  = state.settings.notion.token   || "";
   $("#notion-parent").value = state.settings.notion.parent  || "";
   if ($("#notion-proxy")) $("#notion-proxy").value = state.settings.notion.proxyUrl || "";
+  updateSettingsNotionProxyBanner();
+  // Same-origin probe is async — re-run on a short delay to reflect the result.
+  setTimeout(updateSettingsNotionProxyBanner, 600);
+  setTimeout(updateSettingsNotionProxyBanner, 1800);
   toggleProviderRows();
 
   // PHASE 4 cost-saving toggles
