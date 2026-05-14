@@ -417,7 +417,36 @@ const NotionSync = (function() {
     return "(untitled)";
   }
 
-  return { push, pull, listLibrary, serialise };
+  /* Convenience helper for the rest of the app: are we ready to call push/pull?
+   * Reads from window.state.settings.notion if available; otherwise checks
+   * settings passed in directly. Returns true only when we have both a token
+   * and a workspace with an essayLibraryDbId. */
+  function isConfigured(settings) {
+    try {
+      const s = settings || (window.state && window.state.settings) || {};
+      const n = s.notion || {};
+      return !!(n.token && n.workspace && n.workspace.databases && n.workspace.databases.essayLibrary);
+    } catch (_) { return false; }
+  }
+
+  /* Convenience wrapper for callers that don't want to dig into settings —
+   * push by essay id or essay object, using whatever's in state.settings. */
+  async function pushEasy(essay, onProgress) {
+    const s = (window.state && window.state.settings) || {};
+    const n = s.notion || {};
+    if (!n.token) throw new Error("Notion token not set in Settings.");
+    if (!n.workspace || !n.workspace.databases || !n.workspace.databases.essayLibrary) {
+      throw new Error("Notion workspace not bootstrapped yet — run Setup → Notion → Create 4 databases first.");
+    }
+    return await push({
+      token: n.token,
+      essayLibraryDbId: n.workspace.databases.essayLibrary,
+      essay,
+      onProgress
+    });
+  }
+
+  return { push, pull, listLibrary, serialise, isConfigured, pushEasy };
 })();
 
 window.NotionSync = NotionSync;

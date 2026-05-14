@@ -3891,56 +3891,218 @@ function bindGlobal() {
 
   $("#importDataBtn").addEventListener("click", () => $("#importFile").click());
   $("#importFile").addEventListener("change", async ev => {
-    const f = ev.target.files[0]; if (!f) return;
+    const files = Array.from(ev.target.files || []);
+    if (!files.length) return;
+
+    /* Track which essays this import created so we can offer to push them
+     * to Notion afterwards (Task 1). */
+    const newlyImportedIds = [];
+    let backupRestored = false;
+
     try {
-      const data = JSON.parse(await f.text());
+      for (const f of files) {
+        const ext = (f.name.split(".").pop() || "").toLowerCase();
+        const result = await handleImportFile(f, ext);
+        if (!result) continue;
 
-      // v2 backup (new format) — full settings + essays, preserves IDs
-      if (data && data.app === "easy-essay" && Array.isArray(data.essays)) {
-        const replace = confirm(
-          `Backup contains ${data.essays.length} essay${data.essays.length===1?"":"s"}` +
-          (data.settings ? " + settings" : "") + ".\n\n" +
-          "Click OK to REPLACE everything currently in this browser with the backup.\n" +
-          "Click Cancel to MERGE (keep your current essays, add the backup's as new copies)."
-        );
-
-        if (replace) {
-          // Replace mode — preserve original IDs so server-sync can match
-          state.essays = data.essays;
-          if (data.settings && typeof data.settings === "object") {
-            state.settings = { ...state.settings, ...data.settings };
-          }
-        } else {
-          // Merge mode — give new IDs to the imported essays so they don't
-          // clobber existing ones
-          state.essays = (state.essays || []).concat(
-            data.essays.map(e => ({ ...e, id: uid() }))
-          );
+        if (result.kind === "backup") {
+          // Backup files take over the whole essays array — handled inline.
+          backupRestored = true;
+          if (result.essayIds) newlyImportedIds.push(...result.essayIds);
+        } else if (result.kind === "essay") {
+          state.essays = state.essays || [];
+          state.essays.push(result.essay);
+          newlyImportedIds.push(result.essay.id);
         }
-        saveSettings();
-        saveEssays();
-        toast(`Imported ${data.essays.length} essay${data.essays.length===1?"":"s"}${data.settings?" + settings":""}.`);
-        renderLibrary();
-        renderHome();
-        return;
       }
 
-      // v1 backup (legacy) — essays only
-      if (data && Array.isArray(data.essays)) {
-        state.essays = (state.essays || []).concat(
-          data.essays.map(e => ({ ...e, id: uid() }))
-        );
-        saveEssays();
-        toast("Imported " + data.essays.length + " essays (legacy format).");
-        renderLibrary();
-        return;
+      saveEssays();
+      saveSettings();
+      renderLibrary();
+      renderHome();
+
+      if (backupRestored) {
+        // Backup path already toasts inside handleImportFile.
+      } else if (newlyImportedIds.length === 1) {
+        toast(`Imported 1 essay as a new draft.`);
+      } else if (newlyImportedIds.length > 1) {
+        toast(`Imported ${newlyImportedIds.length} essays as new drafts.`);
       }
 
-      toast("Not a recognisable easy-essay backup file.");
+      // Task 1 — Offer to push freshly imported essays into Notion if it's
+      // connected. We never auto-push without asking (some students will
+      // want to clean the text up first).
+      await maybeOfferNotionPushAfterImport(newlyImportedIds);
+
     } catch (e) {
-      toast("Import failed: " + e.message);
+      console.error("Import failed:", e);
+      toast("Import failed: " + (e.message || e));
+    } finally {
+      // Clear the file input so re-selecting the same file re-fires change.
+      ev.target.value = "";
     }
   });
+
+  /* ── per-file import dispatcher ────────────────────────────────────── */
+  async function handleImportFile(file, ext) {
+    if (ext === "json" || file.type === "application/json") {
+      return await importBackupJson(file);
+    }
+    if (ext === "txt" || ext === "md" || ext === "markdown" ||
+        file.type === "text/plain" || file.type === "text/markdown") {
+      const text = await file.text();
+      return { kind: "essay", essay: makeEssayFromText(file.name, text, ext === "md" || ext === "markdown" ? "markdown" : "text") };
+    }
+    if (ext === "docx" || file.name.toLowerCase().endsWith(".docx")) {
+      const text = await extractDocxText(file);
+      return { kind: "essay", essay: makeEssayFromText(file.name, text, "docx") };
+    }
+    toast(`Unsupported file: ${file.name}. Use .json, .txt, .md, or .docx.`);
+    return null;
+  }
+
+  /* ── backup JSON path (v1 + v2) — preserved from previous version ──── */
+  async function importBackupJson(file) {
+    const data = JSON.parse(await file.text());
+
+    // v2 backup (new format) — full settings + essays, preserves IDs
+    if (data && data.app === "easy-essay" && Array.isArray(data.essays)) {
+      const replace = confirm(
+        `Backup contains ${data.essays.length} essay${data.essays.length===1?"":"s"}` +
+        (data.settings ? " + settings" : "") + ".\n\n" +
+        "Click OK to REPLACE everything currently in this browser with the backup.\n" +
+        "Click Cancel to MERGE (keep your current essays, add the backup's as new copies)."
+      );
+      let ids;
+      if (replace) {
+        state.essays = data.essays;
+        if (data.settings && typeof data.settings === "object") {
+          state.settings = { ...state.settings, ...data.settings };
+        }
+        ids = data.essays.map(e => e.id).filter(Boolean);
+      } else {
+        const cloned = data.essays.map(e => ({ ...e, id: uid() }));
+        state.essays = (state.essays || []).concat(cloned);
+        ids = cloned.map(e => e.id);
+      }
+      toast(`Imported ${data.essays.length} essay${data.essays.length===1?"":"s"}${data.settings?" + settings":""}.`);
+      return { kind: "backup", essayIds: ids };
+    }
+
+    // v1 backup (legacy) — essays only
+    if (data && Array.isArray(data.essays)) {
+      const cloned = data.essays.map(e => ({ ...e, id: uid() }));
+      state.essays = (state.essays || []).concat(cloned);
+      toast("Imported " + data.essays.length + " essays (legacy format).");
+      return { kind: "backup", essayIds: cloned.map(e => e.id) };
+    }
+
+    toast("JSON file isn't a recognisable easy-essay backup.");
+    return null;
+  }
+
+  /* ── plain-text + markdown → essay shell ────────────────────────────── */
+  function makeEssayFromText(fileName, content, sourceFormat) {
+    const baseTitle = fileName.replace(/\.[^.]+$/, "").trim() || "Imported essay";
+    const now = Date.now();
+    const wordCount = (content || "").trim().split(/\s+/).filter(Boolean).length;
+    return {
+      id: uid(),
+      createdAt: now,
+      updatedAt: now,
+      step: 8, // Drafting — they've got prose, start from there
+      setup: {
+        title: baseTitle,
+        course: "",
+        degreeLevel: "undergraduate",
+        wordCount: Math.max(500, Math.round(wordCount / 100) * 100),
+        deadline: "",
+        citationStyle: "APA 7th",
+        discipline: "",
+        brief: `Imported from ${sourceFormat.toUpperCase()} file "${fileName}". Add the original brief here if you have it; the rest of the workflow still works without it.`,
+        initialIdea: ""
+      },
+      brief:   { commandWords:"", audience:"", scope:"", constraints:"", successCriteria:"" },
+      rubric:  { templateId: "", criteria: [] },
+      questions: { generated: [], selectedIndex: -1, custom: "" },
+      essayType: { recommended: "", chosen: "", why: "" },
+      sources: [],
+      thesis:  { topic:"", position:"", rationale:"", combined:"", supportingClaims:"", counterargument:"", motive:"" },
+      outline: { text:"", allocation: {}, sectionsByKey: {} },
+      paragraphs: [],
+      draft: content,
+      notes: `Imported on ${new Date().toLocaleDateString()} from ${fileName}.`,
+      checklist: {},
+      coach: [],
+      integrity: [{ ts: now, action: "EXPORT_LOCAL", detail: `Imported from ${sourceFormat} file: ${fileName}` }],
+      aiCost: { total: 0, byTask: {}, byModel: {}, calls: 0 },
+      aiLedger: []
+    };
+  }
+
+  /* ── .docx → text via lazy-loaded mammoth.js ───────────────────────── */
+  async function extractDocxText(file) {
+    // Lazy-load mammoth from CDN. Only happens when a .docx is imported —
+    // students who never touch Word files don't pay the bandwidth.
+    if (!window.mammoth) {
+      toast("Loading Word-document reader… (first time only)");
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js";
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("Couldn't load Word reader. Try converting the .docx to .txt or .md and re-import."));
+        document.head.appendChild(s);
+      });
+    }
+    const buf = await file.arrayBuffer();
+    const result = await window.mammoth.extractRawText({ arrayBuffer: buf });
+    if (!result || !result.value) {
+      throw new Error("Couldn't extract any text from this .docx — it may be empty, password-protected, or scanned images.");
+    }
+    return result.value;
+  }
+
+  /* ── Task 1: prompt to push imported essays to Notion ──────────────── */
+  async function maybeOfferNotionPushAfterImport(essayIds) {
+    if (!essayIds || essayIds.length === 0) return;
+    if (typeof NotionSync === "undefined" || !NotionSync.isConfigured) return;
+    if (!NotionSync.isConfigured()) return;  // Notion not set up — silently skip
+
+    const yes = confirm(
+      `Push ${essayIds.length} imported essay${essayIds.length===1?"":"s"} to your Notion workspace now?\n\n` +
+      `OK = push each one as a new Notion page now.\n` +
+      `Cancel = leave them local for now (you can push individually later from any essay's side rail).`
+    );
+    if (!yes) return;
+
+    let ok = 0, fail = 0;
+    toast(`Pushing ${essayIds.length} essay${essayIds.length===1?"":"s"} to Notion…`);
+    for (const id of essayIds) {
+      const essay = (state.essays || []).find(e => e.id === id);
+      if (!essay) continue;
+      try {
+        const meta = await NotionSync.pushEasy(essay);
+        // Persist the Notion page ID/URL onto the essay so future syncs know.
+        if (meta) {
+          essay.notion = essay.notion || {};
+          essay.notion.pageId   = meta.pageId   || essay.notion.pageId;
+          essay.notion.pageUrl  = meta.pageUrl  || essay.notion.pageUrl;
+          essay.notion.lastPush = Date.now();
+        }
+        ok++;
+      } catch (err) {
+        console.warn("Notion push failed for", essay.setup?.title || id, err);
+        fail++;
+      }
+    }
+    saveEssays();
+    renderLibrary();
+    if (fail === 0) {
+      toast(`✓ Pushed ${ok} essay${ok===1?"":"s"} to Notion.`);
+    } else {
+      toast(`Pushed ${ok}, failed ${fail}. See console for details.`);
+    }
+  }
   $("#wipeBtn").addEventListener("click", () => {
     if (!confirm("Wipe all essays, keys, and Notion settings? This cannot be undone.")) return;
     localStorage.removeItem(STORAGE.essays);

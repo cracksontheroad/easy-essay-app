@@ -444,10 +444,10 @@
               <button class="btn btn-primary" id="exportDataBtn">⬇ Export full backup (.json)</button>
               <button class="btn btn-ghost" id="importDataBtn">⬆ Restore from backup file</button>
               <button class="btn btn-danger" id="wipeBtn">Wipe everything</button>
-              <input type="file" id="importFile" accept="application/json" hidden/>
+              <input type="file" id="importFile" accept=".json,.txt,.md,.markdown,.docx,application/json,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden multiple/>
             </div>
             <p class="muted small" style="margin-top:8px;">
-              Backups include all essays + every step's draft, AI cost log, integrity log, and settings (API keys, Notion config, custom provider). Pure local file — never uploaded to anyone.
+              <b>Restore accepts:</b> Easy Essay backup files (<code>.json</code>), plain text (<code>.txt</code>), Markdown (<code>.md</code>), and Word documents (<code>.docx</code>). Each non-backup file becomes a new draft essay you can keep working on. Backups include all essays + every step's draft, AI cost log, integrity log, and settings (API keys, Notion config, custom provider). Pure local file — never uploaded to anyone.
             </p>
           </div>
 
