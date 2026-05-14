@@ -381,10 +381,6 @@
             <h3>Notion Integration</h3>
             <p class="muted">Two-way: push finished essays into your Notion workspace AND pull existing Notion pages in as research sources.</p>
 
-            <p id="settings-notion-proxy-banner" class="muted small" style="padding:10px 14px; background:var(--slate-50); border-left:3px solid var(--violet-500); border-radius:6px; margin-bottom:14px;">
-              Checking connection method…
-            </p>
-
             <label class="field">
               <span>Notion Internal Integration Token</span>
               <input type="password" id="notion-token" placeholder="secret_... or ntn_..." autocomplete="off"/>
@@ -400,17 +396,6 @@
               Your token is stored locally only — never sent anywhere except Notion's own API.
             </p>
 
-            <details style="margin-top:14px;">
-              <summary class="muted small" style="cursor:pointer; padding:4px 0;">Advanced — use an external Notion proxy URL</summary>
-              <p class="muted small" style="margin-top:8px;">
-                The app at <code>sail-essay-writing-tool.netlify.app</code> has a built-in proxy at <code>/api/notion</code> — leave the field below blank.
-                If you fork the app and host it on a platform without serverless functions, deploy the Cloudflare Worker in <code>cloudflare-worker/notion-proxy.js</code> (<a href="https://github.com/cracksontheroad/easy-essay-app/blob/main/docs/CLOUDFLARE-WORKER-DEPLOY.md" target="_blank">3-min walkthrough</a>) and paste its URL here.
-              </p>
-              <label class="field">
-                <span>External proxy URL <span class="muted">(optional override)</span></span>
-                <input type="text" id="notion-proxy" placeholder="(leave blank to use the built-in proxy)"/>
-              </label>
-            </details>
             <div class="row">
               <button class="btn btn-primary" id="saveNotionBtn">Save Notion settings</button>
               <button class="btn btn-ghost" id="testNotionBtn">Test Notion connection</button>
@@ -539,19 +524,6 @@
             </div>
           </div>
           <div class="setup-step-body" data-body="notion" hidden>
-            <p id="setup-notion-proxy-banner" class="muted small" style="padding:10px 14px; background:var(--slate-50); border-left:3px solid var(--violet-500); border-radius:6px; margin-bottom:12px;">
-              Checking for built-in Notion proxy…
-            </p>
-            <details style="margin-bottom:14px;">
-              <summary class="muted small" style="cursor:pointer; padding:4px 0;">Advanced — use a different proxy (skip if the banner above is green)</summary>
-              <label class="field" id="setup-notion-proxy-row" style="margin-top:8px;">
-                <span>External proxy URL</span>
-                <input type="text" id="setup-notion-proxy" placeholder="(leave blank to use the built-in)"/>
-              </label>
-              <p class="muted small">
-                Only needed if you fork the app and host it on a platform without serverless functions. Deploy the <a href="https://github.com/cracksontheroad/easy-essay-app/blob/main/docs/CLOUDFLARE-WORKER-DEPLOY.md" target="_blank" rel="noopener">Cloudflare Worker</a> (or any equivalent) and paste its URL here.
-              </p>
-            </details>
             <label class="field">
               <span>1. Notion Integration Token</span>
               <input type="password" id="setup-notion-token" placeholder="secret_… or ntn_…" autocomplete="off"/>

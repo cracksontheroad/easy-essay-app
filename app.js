@@ -392,57 +392,16 @@ function wireSetupWizard() {
   });
 
   // Step 2 — Notion
-  const notionPxy = $("#setup-notion-proxy");
   const notionTok = $("#setup-notion-token");
   const notionPar = $("#setup-notion-parent");
   const parsedLine= $("#setup-notion-parent-parsed");
-  if (notionPxy) notionPxy.value = state.settings.notion?.proxyUrl || "";
   if (notionTok) notionTok.value = state.settings.notion?.token || "";
   if (notionPar) notionPar.value = state.settings.notion?.parent || "";
 
-  // Save the proxy URL on any change so subsequent calls see it.
-  function saveProxyFromSetup() {
-    const url = (notionPxy?.value || "").trim().replace(/\/+$/, "");
-    state.settings.notion = state.settings.notion || {};
-    state.settings.notion.proxyUrl = url;
-    saveSettings();   // also republishes to window.NOTION_PROXY_URL
-  }
-  notionPxy?.addEventListener("input", saveProxyFromSetup);
-  notionPxy?.addEventListener("change", saveProxyFromSetup);
-
-  // Update the proxy availability banner once the same-origin probe finishes.
-  function updateProxyBanner() {
-    const banner = $("#setup-notion-proxy-banner");
-    if (!banner) return;
-    const sameOrigin = window._NOTION_SAMEORIGIN_OK === true;
-    const external   = !!(state.settings.notion?.proxyUrl);
-    if (sameOrigin && !external) {
-      banner.innerHTML = "✓ <b>Built-in proxy detected</b> at /api/notion. No external setup needed — proceed to Step 1.";
-      banner.style.background = "var(--emerald-50)";
-      banner.style.borderLeftColor = "var(--emerald-500)";
-      banner.style.color = "var(--emerald-500)";
-    } else if (sameOrigin && external) {
-      banner.innerHTML = "✓ Built-in proxy detected, but you've also pasted an external URL above. The external one will be used.";
-      banner.style.background = "var(--violet-50)";
-      banner.style.borderLeftColor = "var(--violet-500)";
-      banner.style.color = "var(--slate-700)";
-    } else if (external) {
-      banner.innerHTML = "Using the external proxy URL you pasted below.";
-      banner.style.background = "var(--violet-50)";
-      banner.style.borderLeftColor = "var(--violet-500)";
-      banner.style.color = "var(--slate-700)";
-    } else {
-      banner.innerHTML = "No proxy available. Either deploy this app to Netlify (built-in proxy at /api/notion) <i>or</i> paste an external proxy URL below. See <a href='https://github.com/cracksontheroad/easy-essay-app/blob/main/docs/NETLIFY-DEPLOY.md' target='_blank' rel='noopener'>docs</a>.";
-      banner.style.background = "var(--red-50)";
-      banner.style.borderLeftColor = "var(--red-500)";
-      banner.style.color = "var(--red-600)";
-    }
-  }
-  updateProxyBanner();
-  // Re-check the banner once same-origin probe completes (probe is async).
-  setTimeout(updateProxyBanner, 500);
-  setTimeout(updateProxyBanner, 1500);
-  notionPxy?.addEventListener("input", updateProxyBanner);
+  // The Notion proxy is built into this deployment (Netlify Function at
+  // /api/notion). notion.js auto-detects it via a same-origin probe — no UI,
+  // no setup, nothing for students to configure.
+  function saveProxyFromSetup() { /* no-op: built-in proxy, nothing to save */ }
 
   // Live-parse the page URL/ID as the user types so they get instant
   // confirmation that the input is well-formed.
@@ -471,16 +430,9 @@ function wireSetupWizard() {
   }
 
   $("#setup-notion-test")?.addEventListener("click", async () => {
-    saveProxyFromSetup();
-    // Accept either an external proxy URL OR the built-in same-origin one.
-    const hasProxy = !!(state.settings.notion.proxyUrl) || window._NOTION_SAMEORIGIN_OK === true;
-    if (!hasProxy) {
-      setNotionResult("err", "No Notion proxy available. Either host this app on Netlify (built-in proxy auto-detected) or paste an external proxy URL at Step 0.");
-      return;
-    }
     const token  = (notionTok.value || "").trim();
     if (!token) { setNotionResult("err", "Paste your Notion token first."); return; }
-    setNotionResult("", "Testing Notion token via proxy…");
+    setNotionResult("", "Testing Notion token…");
     try {
       const me = await Notion.test(token);
       const name = me.name || (me.bot && me.bot.owner && me.bot.owner.user && me.bot.owner.user.name) || "integration";
