@@ -631,6 +631,8 @@ function renderHome() {
 
 /* ============== START / OPEN ESSAY ============== */
 function startNewEssay() {
+  // Option B — sign-in required before any essay can be created.
+  if (!requireAuth("start a new essay")) return;
   const essay = {
     id: uid(),
     createdAt: Date.now(),
@@ -685,6 +687,8 @@ async function maybeAutoBindToNotion(essay) {
 }
 
 function openEssay(id) {
+  // Option B — sign-in required before any essay can be opened.
+  if (!requireAuth("open this essay")) return;
   const e = state.essays.find(x => x.id === id);
   if (!e) return;
   ensureEssayShape(e);
@@ -1840,7 +1844,12 @@ function wireStage() {
     } else { switchView("home"); }
   });
 
-  $$("#stage textarea, #stage input, #stage select").forEach(el => el.addEventListener("input", () => persistCurrentStep(false)));
+  // Save on input (instant localStorage write) AND on blur — blur catches
+  // paste, autofill, and drag-drop where 'input' can be unreliable.
+  $$("#stage textarea, #stage input, #stage select").forEach(el => {
+    el.addEventListener("input", () => persistCurrentStep(false));
+    el.addEventListener("blur",  () => persistCurrentStep(false));
+  });
 
   const wirers = [
     wireSetup, wireBrief, wireRubric, wireQuestions,
@@ -2842,6 +2851,7 @@ function persistCurrentStep(showToast) {
 
   e.updatedAt = Date.now();
   saveEssays();
+  markSaved();   // update the side-rail autosave indicator
   if (showToast) toast("Saved.");
 }
 
@@ -4177,6 +4187,11 @@ async function _handleSignOut() {
   await window.Sb.signOut();
   toast("Signed out.");
   updateAuthUI();
+  // Option B — you can't be editing an essay without a session. If they're
+  // in a workspace when they sign out, send them back to the home page.
+  if (document.querySelector("#view-essay.active")) {
+    switchView("home");
+  }
 }
 
 /* On first successful sign-in, migrate any local-only essays/settings to
@@ -4254,6 +4269,72 @@ function wireAuth() {
   });
 }
 
+/* ============== AUTH GATE (Option B — sign-in required to write) ==============
+ *
+ * Browsing the curriculum, examples, and home page is open to everyone.
+ * But CREATING or OPENING an essay requires an active Supabase session, so
+ * no student can ever end up with work that lives only in one browser's
+ * localStorage. The session persists across visits (Supabase refresh token),
+ * so a returning signed-in student is not asked to re-authenticate — the
+ * gate just refuses anonymous essay access.
+ */
+function requireAuth(actionLabel) {
+  // If the auth module genuinely failed to load, don't brick the whole app —
+  // fall back to local-only mode with a console warning. (Deploy bug, rare.)
+  if (!window.Sb) {
+    console.warn("Supabase auth module not loaded — proceeding in local-only mode.");
+    return true;
+  }
+  if (window.Sb.isSignedIn()) return true;
+
+  // Not signed in — open the auth modal with a contextual nudge.
+  openAuthModal();
+  const r = $("#authResult");
+  if (r) {
+    r.className = "status-line";
+    r.textContent = `Please sign in to ${actionLabel || "continue"} — it takes about 20 seconds and saves your work to the cloud so it's never lost, even if you switch devices or clear your browser.`;
+  }
+  return false;
+}
+
+/* ============== AUTOSAVE ==============
+ * The app already writes to localStorage on every keystroke (and cloud-pushes
+ * 1.5s later when signed in). This adds: (1) a visible "Saved HH:MM" indicator
+ * for reassurance, (2) a 30s heartbeat that catches paste/drag/autofill that
+ * the input handlers might miss, (3) flush-on-tab-hide and flush-on-close.
+ */
+let _autosaveTimer = null;
+
+function setAutosaveState(cls, label) {
+  const row = $("#autosaveRow");
+  if (!row) return;
+  row.classList.remove("is-saving", "is-saved", "is-dirty");
+  row.classList.add(cls);
+  const lbl = $("#autosaveLabel");
+  if (lbl) lbl.textContent = label;
+}
+function markSaved() {
+  const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  setAutosaveState("is-saved", `Saved ${t}`);
+}
+function markSaving() { setAutosaveState("is-saving", "Saving…"); }
+
+/* Flush the current step. Safe to call any time — no-ops when not in an essay. */
+function autosaveFlush() {
+  if (!state.current) return;
+  if (!document.querySelector("#view-essay.active")) return;
+  markSaving();
+  persistCurrentStep(false);   // writes localStorage + (signed-in) debounced cloud push
+  // persistCurrentStep already calls markSaved()
+}
+
+function startAutosaveHeartbeat() {
+  if (_autosaveTimer) clearInterval(_autosaveTimer);
+  // 30-second safety net. persistCurrentStep is cheap (synchronous localStorage
+  // write); the cloud push it triggers is itself debounced, so this never spams.
+  _autosaveTimer = setInterval(autosaveFlush, 30000);
+}
+
 /* ============== INIT ============== */
 window.addEventListener("DOMContentLoaded", () => {
   loadAll();
@@ -4262,4 +4343,15 @@ window.addEventListener("DOMContentLoaded", () => {
   wireSetupWizard();    // attach wizard handlers once (markup is in index.html)
   renderHome();
   maybeShowSetupWizard(); // auto-show on first visit only
+
+  startAutosaveHeartbeat();
+  // Flush when the tab is hidden (student switches to research) and on close.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") autosaveFlush();
+  });
+  window.addEventListener("beforeunload", () => {
+    if (state.current && document.querySelector("#view-essay.active")) {
+      persistCurrentStep(false);
+    }
+  });
 });
