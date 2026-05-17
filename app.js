@@ -4287,27 +4287,44 @@ saveEssays = function() {
 
 function updateAuthUI() {
   const btn = $("#signInBtn");
-  if (!btn) return;
-  const user = window.Sb?.currentUser();
-  // Always-visible single button. Text + behaviour flip with state so users
-  // can never end up with "no login and no logout" visible at once.
-  if (user) {
-    const name = user.user_metadata?.name || user.email?.split("@")[0] || "Account";
-    btn.textContent = `👤 ${name} · Sign out`;
-    btn.title = `Signed in as ${user.email || "user"} — click to sign out`;
-    btn.dataset.signedIn = "1";
-    btn.classList.add("is-signed-in");
-  } else {
-    btn.textContent = "💾 Save to cloud";
-    btn.title = "Optional: save your work to the cloud for cross-device access";
-    btn.dataset.signedIn = "0";
-    btn.classList.remove("is-signed-in");
+  if (btn) {
+    const user = window.Sb?.currentUser();
+    if (user) {
+      const name = user.user_metadata?.name || user.email?.split("@")[0] || "Account";
+      btn.textContent = `↩ Sign out (${name})`;
+      btn.title = `Signed in as ${user.email || "user"} — click to sign out`;
+      btn.dataset.signedIn = "1";
+      btn.classList.add("is-signed-in");
+    } else {
+      btn.textContent = "↪ Sign in";
+      btn.title = "Sign in to save your work to the cloud so it's available on every device";
+      btn.dataset.signedIn = "0";
+      btn.classList.remove("is-signed-in");
+    }
   }
-  // Old standalone userMenuBtn is no longer used — keep it permanently hidden
-  // (HTML still contains the element for back-compat with any cached service
-  // worker that hasn't picked up the new HTML yet).
+  // Legacy back-compat: hide the old standalone userMenuBtn that older cached
+  // HTML may still have. Don't error if it's already gone.
   const old = $("#userMenuBtn");
   if (old) old.hidden = true;
+
+  // Update the autosave row tooltip + label suffix so the user always knows
+  // where their work is currently being saved.
+  refreshAutosaveScopeIndicator();
+}
+
+/* Update the autosave row to reflect WHERE saves are going right now. */
+function refreshAutosaveScopeIndicator() {
+  const row = $("#autosaveRow");
+  if (!row) return;
+  const signedIn = !!window.Sb?.isSignedIn();
+  const email = window.Sb?.currentUser()?.email || "";
+  if (signedIn) {
+    row.dataset.scope = "cloud";
+    row.title = `Auto-saving to this browser AND to the cloud as ${email}. Visible on every device.`;
+  } else {
+    row.dataset.scope = "local";
+    row.title = "Auto-saving to THIS BROWSER ONLY. Sign in (top right) to also save to the cloud and access on every device.";
+  }
 }
 
 function openAuthModal() {
@@ -4484,7 +4501,8 @@ function setAutosaveState(cls, label) {
 }
 function markSaved() {
   const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  setAutosaveState("is-saved", `Saved ${t}`);
+  const scope = window.Sb?.isSignedIn() ? "synced ☁︎" : "local 💾";
+  setAutosaveState("is-saved", `Saved ${t} · ${scope}`);
 }
 function markSaving() { setAutosaveState("is-saving", "Saving…"); }
 

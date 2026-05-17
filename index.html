@@ -39,7 +39,7 @@
       <button class="nav-btn" data-view="examples">Examples</button>
       <button class="nav-btn" data-view="settings">Settings</button>
       <button class="nav-btn install-btn" id="installBtn" hidden title="Install as an app">⬇ Install</button>
-      <button class="nav-btn auth-btn" id="signInBtn" title="Optional: save your work to the cloud for cross-device access">💾 Save to cloud</button>
+      <button class="nav-btn auth-btn" id="signInBtn" title="Sign in to save your work to the cloud so it's available on every device">↪ Sign in</button>
       <button class="nav-btn auth-user" id="userMenuBtn" hidden title="Account menu"></button>
     </nav>
   </header>
@@ -567,12 +567,21 @@
     </div>
   </div>
 
-  <!-- ============ SIGN-IN MODAL (optional cloud sync) ============ -->
+  <!-- ============ SIGN-IN MODAL ============ -->
   <div id="authModal" class="modal">
     <div class="modal-card setup-card">
       <button class="icon-btn modal-close" id="authCloseX" aria-label="Close">×</button>
-      <h2 class="setup-title">💾 Save to the cloud (optional)</h2>
-      <p class="setup-sub">Your work is already saved in this browser. Sign in only if you want to keep it across devices, or as a backup. Pick a password you'll remember — there is no password-reset email.</p>
+      <h2 class="setup-title">Sign in to save across devices</h2>
+      <p class="setup-sub">Pick a password you'll remember — there is no password-reset email.</p>
+
+      <details class="callout" style="margin: 0 0 16px;">
+        <summary style="cursor:pointer; font-weight:600;">How does saving work?</summary>
+        <ul style="margin:10px 0 0; padding-left: 20px; line-height:1.55;">
+          <li><b>Without sign-in:</b> every keystroke is auto-saved to <i>this browser only</i> (localStorage). If you switch device or clear browser data, your work is lost.</li>
+          <li><b>With sign-in:</b> auto-save also pushes to the cloud (Supabase) every ~1.5 s. Open the app on any device, sign in with the same email and password, and your essays are there.</li>
+          <li><b>Export anytime:</b> from any essay you can download <code>.docx</code> / <code>.md</code> / <code>.html</code> / <code>.pdf</code> or push to Notion, signed in or not.</li>
+        </ul>
+      </details>
 
       <div class="auth-options">
         <label class="field">
