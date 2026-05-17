@@ -12,7 +12,7 @@
  * old cache is cleaned up on activate.
  * ====================================================================== */
 
-const CACHE_VERSION = "easy-essay-v2.9.3";
+const CACHE_VERSION = "easy-essay-v2.10.0";
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -34,6 +34,7 @@ const APP_SHELL = [
   "/notion.js",
   "/notion-sync.js",
   "/supabase-auth.js",
+  "/tiptap-editor.js",
   "/app.js",
   "/manifest.json",
   "/assets/icons/icon-192.png",

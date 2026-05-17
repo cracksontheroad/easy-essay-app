@@ -648,7 +648,7 @@ function startNewEssay() {
     thesis: { topic:"", position:"", rationale:"", combined:"", supportingClaims:"", counterargument:"" },
     outline: { allocation:{ intro:10, body1:25, body2:25, body3:25, counter:10, conclusion:5 }, text:"" },
     paragraphs: [],
-    draft: "", notes: "", checklist: {},
+    draft: "", draftHtml: "", notes: "", checklist: {},
     integrity: [], coach: []
   };
   state.essays.push(essay);
@@ -766,6 +766,7 @@ function ensureEssayShape(e) {
   e.paragraphs = e.paragraphs || [];
   e.integrity = e.integrity || [];
   e.coach = e.coach || [];
+  if (typeof e.draftHtml !== "string") e.draftHtml = "";
 }
 
 /* ============== WORKSPACE ============== */
@@ -1439,12 +1440,36 @@ function renderWriting() {
     <div class="panel">
       <h3>Stitched draft</h3>
       <p class="panel-sub">Assemble the paragraphs into a continuous draft, or write here directly. This is what gets exported.</p>
-      <textarea class="wide" id="f-draft" style="min-height:340px;">${escapeHtml(e.draft || "")}</textarea>
+      <div id="f-draft-editor" class="tt-mount"></div>
+      <textarea id="f-draft" hidden aria-hidden="true">${escapeHtml(e.draft || "")}</textarea>
       <div class="row">
         <button class="btn btn-ghost btn-sm" id="stitchDraftBtn">Stitch PEEL parts into draft</button>
         <button class="btn btn-ghost btn-sm" id="phraseLibBtn">📝 Signal-phrase library</button>
         <button class="btn btn-primary btn-sm" id="suggestNextBtn">✨ Suggest next sentence (AI)</button>
+        <button class="btn btn-ghost btn-sm" id="aiToolboxBtn">🪄 AI tools</button>
         <span class="muted small" id="draftCount"></span>
+      </div>
+      <div id="aiToolboxPanel" class="ai-toolbox" hidden>
+        <div class="row" style="flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+          <button class="btn btn-ghost btn-sm" data-ai-tool="grammar">Grammar fix</button>
+          <button class="btn btn-ghost btn-sm" data-ai-tool="rewrite">Rewrite</button>
+          <button class="btn btn-ghost btn-sm" data-ai-tool="simplify">Simplify</button>
+          <button class="btn btn-ghost btn-sm" data-ai-tool="academic">More academic</button>
+          <button class="btn btn-ghost btn-sm" data-ai-tool="shorten">Shorten</button>
+          <button class="btn btn-ghost btn-sm" data-ai-tool="expand">Expand</button>
+          <button class="btn btn-ghost btn-sm" data-ai-tool="paraphrase">Paraphrase</button>
+          <button class="btn btn-ghost btn-sm" data-ai-tool="translate-en">Translate → EN</button>
+          <button class="btn btn-ghost btn-sm" data-ai-tool="translate-zh">Translate → 中文</button>
+        </div>
+        <p class="muted small">Select text in the editor first, then click a tool. Result replaces the selection.</p>
+        <div id="aiToolboxOut"></div>
+      </div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:6px;">
+        <span class="muted small">Export draft:</span>
+        <button class="btn btn-ghost btn-sm" id="draftExportDocx">.docx</button>
+        <button class="btn btn-ghost btn-sm" id="draftExportMd">.md</button>
+        <button class="btn btn-ghost btn-sm" id="draftExportHtml">.html</button>
+        <button class="btn btn-ghost btn-sm" id="draftExportPdf">.pdf</button>
       </div>
       <div id="phraseLibPanel" class="phrase-lib" hidden></div>
       <div id="suggestOut"></div>
@@ -2501,64 +2526,97 @@ function renderPhraseLib() {
 }
 
 function wireWriting() {
-  const stitch = $("#stitchDraftBtn");
-  if (stitch) stitch.addEventListener("click", () => {
-    const e = state.current;
+  const e = state.current;
+  const mountEl = $("#f-draft-editor");
+  const hiddenTA = $("#f-draft");
+  const cnt = $("#draftCount");
+
+  /* ---------- mount Tiptap on the draft container ---------- */
+  if (mountEl && window.EssayEditor) {
+    window.EssayEditor.mount({
+      mountEl,
+      initialHtml: e.draftHtml || "",
+      initialText: e.draft || "",
+      placeholder: "Write here, or click ‘Stitch PEEL parts into draft’ to start from your paragraphs.",
+      onUpdate: ({ text, html }) => {
+        if (hiddenTA) hiddenTA.value = text;
+        e.draft = text;
+        e.draftHtml = html;
+        if (cnt) cnt.textContent = `${window.EssayEditor.wordCount()} words / target ${state.current.setup.wordCount}`;
+        persistCurrentStep(false);
+      },
+    }).then(() => {
+      if (cnt) cnt.textContent = `${window.EssayEditor.wordCount()} words / target ${state.current.setup.wordCount}`;
+    }).catch(err => {
+      console.error("[tiptap] mount failed, falling back to textarea:", err);
+      if (hiddenTA) { hiddenTA.hidden = false; hiddenTA.style.minHeight = "340px"; hiddenTA.className = "wide"; }
+      toast("Rich editor failed to load. Using plain textarea.");
+    });
+  } else if (hiddenTA) {
+    hiddenTA.hidden = false; hiddenTA.style.minHeight = "340px"; hiddenTA.className = "wide";
+    const tick = () => {
+      const w = (hiddenTA.value || "").trim().split(/\s+/).filter(Boolean).length;
+      if (cnt) cnt.textContent = `${w} words / target ${state.current.setup.wordCount}`;
+    };
+    hiddenTA.addEventListener("input", () => { e.draft = hiddenTA.value; persistCurrentStep(false); tick(); });
+    tick();
+  }
+
+  /* ---------- Stitch PEEL parts ---------- */
+  $("#stitchDraftBtn")?.addEventListener("click", () => {
     const parts = (e.paragraphs || []).map(p => {
       if (p.role === "intro" || p.role === "conclusion") return [p.point, p.evidence, p.explanation].filter(Boolean).join(" ");
       if (p.role === "counter") return ["Counterargument: " + (p.point || ""), p.evidence, p.explanation].filter(Boolean).join(" ");
       return [p.point, p.evidence, p.explanation, p.link].filter(Boolean).join(" ");
     });
-    $("#f-draft").value = parts.filter(Boolean).join("\n\n");
+    const stitched = parts.filter(Boolean).join("\n\n");
+    if (window.EssayEditor?.isMounted()) {
+      window.EssayEditor.setContent(stitched, false);
+    } else if (hiddenTA) {
+      hiddenTA.value = stitched;
+      e.draft = stitched;
+    }
     persistCurrentStep();
     logIntegrity("PEEL_SAVE", "Stitched draft");
     toast("Stitched paragraphs into the draft.");
   });
-  // word counter
-  const draftEl = $("#f-draft"), cnt = $("#draftCount");
-  function tick() {
-    if (!draftEl || !cnt) return;
-    const w = (draftEl.value||"").trim().split(/\s+/).filter(Boolean).length;
-    cnt.textContent = `${w} words / target ${state.current.setup.wordCount}`;
-  }
-  if (draftEl) { draftEl.addEventListener("input", tick); tick(); }
 
-  // PHASE 2C — Signal-phrase library toggle
+  /* ---------- Signal-phrase library ---------- */
   $("#phraseLibBtn")?.addEventListener("click", () => {
     const panel = $("#phraseLibPanel");
     if (!panel) return;
     if (panel.hidden) {
-      panel.innerHTML = renderPhraseLib();
+      setHTML(panel, renderPhraseLib());
       panel.hidden = false;
       panel.querySelectorAll(".phrase-chip").forEach(b => b.addEventListener("click", () => {
         const phrase = b.dataset.phrase;
-        const ta = $("#f-draft");
-        if (!ta) return;
-        const pos = ta.selectionStart ?? ta.value.length;
-        const before = ta.value.slice(0, pos);
-        const after  = ta.value.slice(pos);
-        const sep = before && !/[\s\n]$/.test(before) ? " " : "";
-        ta.value = before + sep + phrase + " " + after;
-        ta.focus();
-        ta.setSelectionRange(pos + sep.length + phrase.length + 1, pos + sep.length + phrase.length + 1);
-        persistCurrentStep(false);
-        tick();
+        if (window.EssayEditor?.isMounted()) {
+          window.EssayEditor.insertAtCursor(phrase + " ");
+          window.EssayEditor.focus();
+        } else if (hiddenTA) {
+          const pos = hiddenTA.selectionStart ?? hiddenTA.value.length;
+          const before = hiddenTA.value.slice(0, pos), after = hiddenTA.value.slice(pos);
+          const sep = before && !/[\s\n]$/.test(before) ? " " : "";
+          hiddenTA.value = before + sep + phrase + " " + after;
+          hiddenTA.focus();
+          e.draft = hiddenTA.value;
+          persistCurrentStep(false);
+        }
       }));
     } else {
       panel.hidden = true;
     }
   });
 
-  // PHASE 2C — AI "Suggest next sentence"
+  /* ---------- AI "Suggest next sentence" ---------- */
   $("#suggestNextBtn")?.addEventListener("click", async () => {
-    const e = state.current;
     const s = state.settings;
-    const ta = $("#f-draft");
-    const pos = ta?.selectionStart ?? (ta?.value.length || 0);
-    const before = (ta?.value || "").slice(0, pos);
-    if (!before.trim()) { toast("Type something first; the AI continues from your cursor."); return; }
+    const draftText = window.EssayEditor?.isMounted()
+      ? window.EssayEditor.getText()
+      : (hiddenTA?.value || "");
+    if (!draftText.trim()) { toast("Type something first; the AI continues from where you are."); return; }
     if (!s.keys[s.provider]) { toast(`No API key for ${s.provider} — add one in Settings.`); return; }
-    $("#suggestOut").innerHTML = `<p class="muted small">Asking the AI…</p>`;
+    setHTML($("#suggestOut"), `<p class="muted small">Asking the AI…</p>`);
     try {
       const ctx = `Essay thesis: ${e.thesis.combined || "(none)"}\nResearch question: ${currentResearchQuestion(e) || "(none)"}\nEssay type: ${e.essayType.chosen || "(none)"}\nCitation style: ${e.setup.citationStyle || ""}\n\nThe student is drafting. Suggest the next 1–2 sentences that should follow, in their voice, in keeping with the thesis and the PEEL paragraph structure. Do not introduce content that has no support; if evidence is needed, write a placeholder like “[Evidence — Smith, 2023]” for the student to verify. Return ONLY the suggested sentence(s), no preamble.`;
       const result = await AI.chat({
@@ -2568,11 +2626,11 @@ function wireWriting() {
         apiKey: s.keys[s.provider],
         cacheable: s.promptCaching !== false,
         system: METHODOLOGY.coachSystem + "\n\n" + ctx,
-        messages: [{ role: "user", content: "Current draft up to cursor:\n\n" + before.slice(-1200) }]
+        messages: [{ role: "user", content: "Current draft (last 1200 chars):\n\n" + draftText.slice(-1200) }]
       });
       recordAIUsage({ task: "PEEL_DRAFT", model: result.model, usage: result.usage, cost: result.cost });
       const suggestion = (result.text || "").trim();
-      $("#suggestOut").innerHTML = `
+      setHTML($("#suggestOut"), `
         <div class="suggestion-box">
           <p class="muted small">AI suggestion (${escapeHtml(result.model)}, ${fmtUSD(result.cost)})</p>
           <p class="suggestion-text">${escapeHtml(suggestion)}</p>
@@ -2581,24 +2639,118 @@ function wireWriting() {
             <button class="btn btn-ghost btn-sm" id="rejectSuggestBtn">✗ Dismiss</button>
           </div>
         </div>
-      `;
+      `);
       $("#acceptSuggestBtn")?.addEventListener("click", () => {
-        const pos2 = ta.selectionStart ?? ta.value.length;
-        const b = ta.value.slice(0, pos2);
-        const a = ta.value.slice(pos2);
-        const sep = b && !/[\s\n]$/.test(b) ? " " : "";
-        ta.value = b + sep + suggestion + a;
-        ta.focus();
-        persistCurrentStep(false);
-        tick();
-        $("#suggestOut").innerHTML = "";
+        if (window.EssayEditor?.isMounted()) {
+          window.EssayEditor.insertAtCursor((suggestion.startsWith(" ") ? "" : " ") + suggestion);
+          window.EssayEditor.focus();
+        } else if (hiddenTA) {
+          const pos2 = hiddenTA.selectionStart ?? hiddenTA.value.length;
+          const b = hiddenTA.value.slice(0, pos2), a = hiddenTA.value.slice(pos2);
+          const sep = b && !/[\s\n]$/.test(b) ? " " : "";
+          hiddenTA.value = b + sep + suggestion + a;
+          hiddenTA.focus();
+          e.draft = hiddenTA.value;
+          persistCurrentStep(false);
+        }
+        setHTML($("#suggestOut"), "");
         logIntegrity("PEEL_SAVE", "Accepted AI suggestion");
       });
-      $("#rejectSuggestBtn")?.addEventListener("click", () => { $("#suggestOut").innerHTML = ""; });
+      $("#rejectSuggestBtn")?.addEventListener("click", () => { setHTML($("#suggestOut"), ""); });
     } catch (err) {
-      $("#suggestOut").innerHTML = `<p class="status-line err">Suggest failed: ${escapeHtml(err.message)}</p>`;
+      setHTML($("#suggestOut"), `<p class="status-line err">Suggest failed: ${escapeHtml(err.message)}</p>`);
     }
   });
+
+  /* ---------- AI toolbox (rewrite / simplify / translate / etc) ---------- */
+  $("#aiToolboxBtn")?.addEventListener("click", () => {
+    const panel = $("#aiToolboxPanel");
+    if (panel) panel.hidden = !panel.hidden;
+  });
+
+  $$('#aiToolboxPanel [data-ai-tool]').forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await runAITool(btn.dataset.aiTool);
+    });
+  });
+
+  /* ---------- Draft-only export buttons (Tiptap content) ---------- */
+  const titleFor = () => (e.setup.title || "essay").replace(/[^\w-]/g, "_");
+  $("#draftExportDocx")?.addEventListener("click", () => { window.EssayEditor?.exportDocx(titleFor()); logIntegrity("EXPORT_LOCAL", "DOCX (draft)"); });
+  $("#draftExportMd")  ?.addEventListener("click", () => { window.EssayEditor?.exportMd  (titleFor()); logIntegrity("EXPORT_LOCAL", "MD (draft)"); });
+  $("#draftExportHtml")?.addEventListener("click", () => { window.EssayEditor?.exportHtml(titleFor()); logIntegrity("EXPORT_LOCAL", "HTML (draft)"); });
+  $("#draftExportPdf") ?.addEventListener("click", () => { window.EssayEditor?.exportPdf (titleFor()); logIntegrity("EXPORT_LOCAL", "PDF (draft)"); });
+}
+
+/* ============== AI TOOLBOX — transform selection in the Tiptap editor ============== */
+async function runAITool(tool) {
+  const e = state.current;
+  const s = state.settings;
+  const out = $("#aiToolboxOut");
+  if (!window.EssayEditor?.isMounted()) { toast("Editor not ready."); return; }
+  if (!s.keys[s.provider]) { toast(`No API key for ${s.provider} — add one in Settings.`); return; }
+
+  const editor = window.EssayEditor;
+  const selText = (window.getSelection && window.getSelection().toString().trim()) || "";
+  const fullText = editor.getText();
+  const source = selText || fullText.slice(-800);
+  if (!source.trim()) { toast("Select some text in the editor, or type something first."); return; }
+
+  const instructions = {
+    "grammar":      "Correct grammar, spelling, and punctuation only. Preserve voice, meaning, and length. Return only the corrected text.",
+    "rewrite":      "Rewrite the following text for clarity and flow, keeping the same meaning and approximate length. Return only the rewritten text.",
+    "simplify":     "Rewrite at a lower reading level. Shorten sentences, prefer common words. Keep the meaning. Return only the simplified text.",
+    "academic":     "Rewrite in a formal academic register suitable for a university essay. Avoid contractions, hedge with care, and use precise vocabulary. Return only the revised text.",
+    "shorten":      "Rewrite to be about 60% as long while keeping every key idea. Return only the shortened text.",
+    "expand":       "Rewrite to be about 150% as long by adding clarifying detail, examples, or qualifiers — but introduce NO new evidence and NO new claims that would need citation. Return only the expanded text.",
+    "paraphrase":   "Paraphrase the text in different words while preserving meaning. Return only the paraphrased text.",
+    "translate-en": "Translate the text into clear academic English. Return only the translation.",
+    "translate-zh": "把以下文本翻译成清晰的学术中文。仅返回译文。",
+  };
+  const prompt = instructions[tool] || instructions.rewrite;
+
+  setHTML(out, `<p class="muted small">Running ${escapeHtml(tool)}…</p>`);
+  try {
+    const result = await AI.chat({
+      provider: s.provider,
+      model: pickModel("PEEL_DRAFT"),
+      task: "PEEL_DRAFT",
+      apiKey: s.keys[s.provider],
+      cacheable: s.promptCaching !== false,
+      system: METHODOLOGY.coachSystem,
+      messages: [{ role: "user", content: prompt + "\n\nTEXT:\n" + source }]
+    });
+    recordAIUsage({ task: "PEEL_DRAFT", model: result.model, usage: result.usage, cost: result.cost });
+    const revised = (result.text || "").trim();
+    setHTML(out, `
+      <div class="suggestion-box">
+        <p class="muted small">${escapeHtml(tool)} · ${escapeHtml(result.model)} · ${fmtUSD(result.cost)}</p>
+        <p class="suggestion-text">${escapeHtml(revised)}</p>
+        <div class="row">
+          <button class="btn btn-primary btn-sm" id="aiToolReplace">${selText ? "Replace selection" : "Insert at cursor"}</button>
+          <button class="btn btn-ghost btn-sm" id="aiToolCopy">Copy</button>
+          <button class="btn btn-ghost btn-sm" id="aiToolDismiss">Dismiss</button>
+        </div>
+      </div>
+    `);
+    $("#aiToolReplace")?.addEventListener("click", () => {
+      if (selText && document.execCommand) {
+        document.execCommand("insertText", false, revised);
+      } else {
+        editor.insertAtCursor((revised.startsWith(" ") ? "" : " ") + revised);
+      }
+      editor.focus();
+      setHTML(out, "");
+      logIntegrity("PEEL_SAVE", "AI tool: " + tool);
+    });
+    $("#aiToolCopy")?.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(revised);
+      toast("Copied.");
+    });
+    $("#aiToolDismiss")?.addEventListener("click", () => { setHTML(out, ""); });
+  } catch (err) {
+    setHTML(out, `<p class="status-line err">AI tool failed: ${escapeHtml(err.message)}</p>`);
+  }
 }
 
 function wireFinal() {
@@ -2830,7 +2982,14 @@ function persistCurrentStep(showToast) {
           if (el) p[k] = el.value;
         });
       });
-      setIf($("#f-draft"), v => e.draft = v);
+      // Prefer the Tiptap editor when mounted (richer text); fall back to the
+      // hidden textarea (also kept in sync by Tiptap's onUpdate).
+      if (window.EssayEditor?.isMounted()) {
+        e.draft     = window.EssayEditor.getText();
+        e.draftHtml = window.EssayEditor.getHTML();
+      } else {
+        setIf($("#f-draft"), v => e.draft = v);
+      }
       break;
     case 9: // Polishing
       setIf($("#f-notes"), v => e.notes = v);
