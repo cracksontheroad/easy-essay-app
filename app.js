@@ -4382,47 +4382,56 @@ async function _handleSignOut() {
   await window.Sb.signOut();
   toast("Signed out. App is still fully usable — your work is saved locally.");
   updateAuthUI();
+  // Always re-render so the page is never blank after sign-out. If the user
+  // was inside an essay workspace, send them home (the workspace renders from
+  // state.current which may have been mutated during the signed-in session).
+  try { renderHome(); } catch (_) {}
+  try { renderLibrary(); } catch (_) {}
+  switchView("home");
 }
 
 /* On first successful sign-in, migrate any local-only essays/settings to
  * the new account so the user doesn't lose anything they wrote before
  * signing up. */
 async function _handleFirstSignIn(user) {
-  // Pull what's on the server first
-  const remote = await window.Sb.pullAll();
-  const haveLocalEssays = (state.essays || []).length > 0;
-  const haveRemoteEssays = (remote.essays || []).length > 0;
+  try {
+    // Pull what's on the server first
+    const remote = await window.Sb.pullAll();
+    const haveLocalEssays = (state.essays || []).length > 0;
+    const haveRemoteEssays = (remote.essays || []).length > 0;
 
-  if (!haveRemoteEssays && haveLocalEssays) {
-    // Brand-new account with existing local data → upload it
-    const { migratedEssays, settingsUploaded } = await window.Sb.migrateLocal(state.settings, state.essays);
-    toast(`Welcome — saved ${migratedEssays} essay${migratedEssays===1?"":"s"} to your account.`);
-    return;
-  }
-
-  if (haveRemoteEssays) {
-    // Server has data — pull it down and merge
-    // For simplicity (and safety), server is authoritative.
-    if (remote.settings) {
-      state.settings = { ...state.settings, ...remote.settings };
-      _origSaveSettings();
+    if (!haveRemoteEssays && haveLocalEssays) {
+      // Brand-new account with existing local data → upload it
+      const { migratedEssays } = await window.Sb.migrateLocal(state.settings, state.essays);
+      toast(`Welcome — saved ${migratedEssays} essay${migratedEssays===1?"":"s"} to your account.`);
+    } else if (haveRemoteEssays) {
+      // Server has data — pull it down and merge (server wins on conflicts)
+      if (remote.settings) {
+        state.settings = { ...state.settings, ...remote.settings };
+        if (typeof _origSaveSettings === "function") _origSaveSettings();
+      }
+      const localById = new Map((state.essays || []).map(e => [e.id, e]));
+      for (const re of remote.essays) localById.set(re.id, re);
+      state.essays = Array.from(localById.values());
+      saveEssaysLocal();
+      toast(`Welcome back — restored ${remote.essays.length} essay${remote.essays.length===1?"":"s"} from your account.`);
+      // Push any local-only essays the server doesn't have
+      const remoteIds = new Set(remote.essays.map(e => e.id));
+      const localOnly = (state.essays || []).filter(e => !remoteIds.has(e.id));
+      if (localOnly.length) await window.Sb.pushEssaysBatch(localOnly);
+    } else {
+      toast("Signed in.");
     }
-    // Merge essays: server wins on conflicts; keep local-only ones too
-    const localById = new Map((state.essays || []).map(e => [e.id, e]));
-    for (const re of remote.essays) localById.set(re.id, re);
-    state.essays = Array.from(localById.values());
-    saveEssaysLocal();
-    toast(`Welcome back — restored ${remote.essays.length} essay${remote.essays.length===1?"":"s"} from your account.`);
-    // After pulling, upload any local-only essays the server doesn't have
-    const remoteIds = new Set(remote.essays.map(e => e.id));
-    const localOnly = (state.essays || []).filter(e => !remoteIds.has(e.id));
-    if (localOnly.length) await window.Sb.pushEssaysBatch(localOnly);
-  } else {
-    // No data either side — fresh account, nothing to do
-    toast("Signed in.");
+  } catch (err) {
+    console.warn("[auth] _handleFirstSignIn:", err);
+    toast("Signed in (cloud sync had an issue — your work is safe locally).");
+  } finally {
+    // ALWAYS re-render so the page never looks blank after sign-in,
+    // regardless of which branch above ran or threw.
+    try { renderLibrary(); } catch (_) {}
+    try { renderHome(); } catch (_) {}
+    if (!document.querySelector(".view.active")) switchView("home");
   }
-  renderLibrary();
-  renderHome();
 }
 
 // Save-essays without triggering the sync push (used when restoring from

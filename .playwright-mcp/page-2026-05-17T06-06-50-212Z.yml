@@ -1,0 +1,128 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e5] [cursor=pointer]:
+      - heading "Easy Essay" [level=1] [ref=e6]
+      - paragraph [ref=e7]: Writing as organised thinking
+    - navigation [ref=e8]:
+      - button "Home" [ref=e9] [cursor=pointer]
+      - button "My Essays" [ref=e10] [cursor=pointer]
+      - button "Curriculum" [ref=e11] [cursor=pointer]
+      - button "Examples" [ref=e12] [cursor=pointer]
+      - button "Settings" [ref=e13] [cursor=pointer]
+      - button "↩ Sign out (carlalston1)" [ref=e14] [cursor=pointer]
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e18]:
+        - heading "University Essay Writing Tool Kit English & Chinese (2nd Ed.)" [level=2] [ref=e19]:
+          - text: University Essay Writing Tool Kit
+          - text: English & Chinese (2nd Ed.)
+        - paragraph [ref=e20]:
+          - text: "Getting ready for university. ESL guide to AI Prompt Engineering and Academic writing for Chinese students:"
+          - generic [ref=e21]: by Carl Simon Alston, MA Edu.
+        - generic [ref=e22]:
+          - button "Start a New Essay" [ref=e23] [cursor=pointer]:
+            - img [ref=e24]
+            - text: Start a New Essay
+          - button "View the Master Flowchart" [ref=e27] [cursor=pointer]
+        - generic [ref=e28]: No essays yet — click 'Start a New Essay' above.
+        - generic [ref=e29]:
+          - img "QR code for https://tinyurl.com/4rtb8nzc" [ref=e30]
+          - generic [ref=e31]:
+            - generic [ref=e32]: Scan or visit
+            - link "https://tinyurl.com/4rtb8nzc" [ref=e33] [cursor=pointer]:
+              - /url: https://tinyurl.com/4rtb8nzc
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - img [ref=e39]
+          - generic [ref=e43]: Essays in flight
+          - generic [ref=e44]: "0"
+          - generic [ref=e45]: saved in your browser
+        - generic [ref=e46]:
+          - img [ref=e49]
+          - generic [ref=e52]: Currently drafting
+          - generic [ref=e53]: "0"
+          - generic [ref=e54]: in steps 9–11
+        - generic [ref=e55]:
+          - img [ref=e58]
+          - generic [ref=e61]: Avg. progress
+          - generic [ref=e62]: 0%
+          - generic [ref=e63]: across all essays
+        - generic [ref=e64]:
+          - img [ref=e67]
+          - generic [ref=e69]: Words written
+          - generic [ref=e70]: "0"
+          - generic [ref=e71]: across all drafts
+      - generic [ref=e72]:
+        - heading "The guided process" [level=3] [ref=e73]
+        - paragraph [ref=e74]:
+          - text: You don't pick the essay type up-front. The app walks you through decoding the brief, choosing a research question, and
+          - emphasis [ref=e75]: then
+          - text: recommends the essay type that best fits.
+        - img "The Guided Essay-Writing Process — 11 Steps from Brief to Submission" [ref=e77]
+      - generic [ref=e78]:
+        - heading "Essay types you can end up writing" [level=3] [ref=e79]
+        - paragraph [ref=e80]: Each type is built on the same core skills — Comprehension, Analysis, Synthesis, Argument — but balances them differently. Step 5 will recommend one based on your chosen research question.
+        - generic [ref=e81]:
+          - generic [ref=e82]:
+            - generic [ref=e83]: Persuade
+            - heading "Argumentative Essay" [level=4] [ref=e84]
+            - paragraph [ref=e85]: Take a debatable position, support it with evidence, address counterarguments using 'They Say / I Say.'
+            - generic [ref=e86]: Chapter 8
+          - generic [ref=e87]:
+            - generic [ref=e88]: Compare & Contrast
+            - heading "Comparative Essay" [level=4] [ref=e89]
+            - paragraph [ref=e90]: Highlight key similarities and differences between two subjects using Block or Point-by-Point structure.
+            - generic [ref=e91]: Chapter 9
+          - generic [ref=e92]:
+            - generic [ref=e93]: Analyse
+            - heading "Analytical Essay" [level=4] [ref=e94]
+            - paragraph [ref=e95]: Break down a text, idea, or dataset to reveal how it works and what it means — go beyond summary.
+            - generic [ref=e96]: Chapter 10
+          - generic [ref=e97]:
+            - generic [ref=e98]: Solve
+            - heading "Problem-Solution Essay" [level=4] [ref=e99]
+            - paragraph [ref=e100]: Define a real problem with evidence and propose a viable, feasible solution.
+            - generic [ref=e101]: Chapter 11
+          - generic [ref=e102]:
+            - generic [ref=e103]: Reflect
+            - heading "Reflective Essay" [level=4] [ref=e104]
+            - paragraph [ref=e105]: Use metacognition and the language of reflection to examine an experience and what you learned.
+            - generic [ref=e106]: Chapter 12
+          - generic [ref=e107]:
+            - generic [ref=e108]: Synthesise
+            - heading "Literature Review" [level=4] [ref=e109]
+            - paragraph [ref=e110]: Synthesise — don't summarise — multiple sources to map a scholarly conversation around a research question.
+            - generic [ref=e111]: Chapter 16
+          - generic [ref=e112]:
+            - generic [ref=e113]: Propose
+            - heading "Research Proposal" [level=4] [ref=e114]
+            - paragraph [ref=e115]: Pose a research question, review the literature, and outline a methodology to investigate it.
+            - generic [ref=e116]: Chapter 17
+      - generic [ref=e117]:
+        - heading "The Master Flowchart" [level=3] [ref=e118]
+        - paragraph [ref=e119]: The big-picture map for every essay. You will never get lost if you know where you are on the map.
+        - generic [ref=e120]:
+          - generic [ref=e121]:
+            - generic [ref=e122]: "1"
+            - generic [ref=e123]: Prewriting
+            - text: Understand the prompt, brainstorm, evaluate sources (RADAR)
+          - generic [ref=e124]: →
+          - generic [ref=e125]:
+            - generic [ref=e126]: "2"
+            - generic [ref=e127]: Planning
+            - text: Craft thesis, create outline, organise evidence
+          - generic [ref=e128]: →
+          - generic [ref=e129]:
+            - generic [ref=e130]: "3"
+            - generic [ref=e131]: Writing
+            - text: Intro → PEEL body paragraphs → Conclusion
+          - generic [ref=e132]: →
+          - generic [ref=e133]:
+            - generic [ref=e134]: "4"
+            - generic [ref=e135]: Polishing
+            - text: Argument, paragraphs, language, citations
+          - generic [ref=e136]: →
+          - generic [ref=e137]:
+            - generic [ref=e138]: "5"
+            - generic [ref=e139]: Submit
+            - text: Formatting, bibliography, plagiarism check

@@ -4,9 +4,12 @@
  * Anonymous users still get the full app via localStorage.
  * Signed-in users get cross-device persistence in essay_app.* tables.
  *
- * - Settings live in: essay_app.user_settings.settings (JSONB)
- * - Essays    live in: essay_app.essays.data           (JSONB)
- * - Activity  lives in: essay_app.activity_log
+ * - Settings live in: public.user_settings.settings (JSONB)
+ * - Essays    live in: public.essays.data           (JSONB)
+ * - Activity  lives in: public.activity_log
+ *   (originally in essay_app schema; moved to public in v2.11.3 because
+ *   only public + gamehub are exposed via the Supabase REST API and
+ *   re-configuring exposed-schemas requires dashboard access.)
  *
  * RLS ensures users only ever see their own rows.
  * The Supabase SDK loads via CDN in index.html and exposes window.supabase.
@@ -55,9 +58,8 @@ const Sb = {
         storage: window.localStorage,
         storageKey: "easy-essay/sb-session"
       },
-      db: { schema: "essay_app" },
       global: {
-        headers: { "X-Easy-Essay-Client": "browser/v2.8" }
+        headers: { "X-Easy-Essay-Client": "browser/v2.11.3" }
       }
     });
 
