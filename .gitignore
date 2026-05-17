@@ -32,3 +32,6 @@ yarn-error.log*
 
 # Claude Code per-project local settings (machine-specific, never commit)
 .claude/settings.local.json
+
+# Playwright MCP debug artefacts (snapshots, screenshots, console logs)
+.playwright-mcp/
