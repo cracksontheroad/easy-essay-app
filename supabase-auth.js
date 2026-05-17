@@ -133,6 +133,65 @@ const Sb = {
     return { redirected: true };
   },
 
+  /* Email + password sign-in. Works server-side regardless of dashboard
+   * config because the email provider is on by default in Supabase. */
+  async signInWithPassword(email, password) {
+    if (!this.client) throw new Error("Auth unavailable — SDK didn't load.");
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error("Please enter a valid email address.");
+    }
+    if (!password || password.length < 6) {
+      throw new Error("Password must be at least 6 characters.");
+    }
+    const { data, error } = await this.client.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (/invalid login credentials/i.test(error.message)) {
+        throw new Error("Email or password is wrong. Use 'Create account' if you're new, or 'Forgot password?' if you used to sign in.");
+      }
+      throw new Error(error.message);
+    }
+    return data;
+  },
+
+  /* Create a new account with email + password. If email confirmations
+   * are ON in the Supabase project, returns { sent: true } (user must
+   * click email link). If OFF, returns { confirmed: true } and signs in
+   * immediately. */
+  async signUpWithPassword(email, password) {
+    if (!this.client) throw new Error("Auth unavailable — SDK didn't load.");
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error("Please enter a valid email address.");
+    }
+    if (!password || password.length < 6) {
+      throw new Error("Pick a password of at least 6 characters.");
+    }
+    const { data, error } = await this.client.auth.signUp({
+      email, password,
+      options: { emailRedirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error) {
+      if (/already registered/i.test(error.message)) {
+        throw new Error("That email already has an account. Use Sign In instead, or reset your password.");
+      }
+      throw new Error(error.message);
+    }
+    return { confirmed: !!data.session, sent: !data.session };
+  },
+
+  /* Send a password-reset email. User clicks link → lands back on app
+   * with a recovery session active → app should prompt for new password. */
+  async sendPasswordReset(email) {
+    if (!this.client) throw new Error("Auth unavailable.");
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error("Please enter a valid email address.");
+    }
+    const { error } = await this.client.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname
+    });
+    if (error) throw new Error(error.message);
+    return { sent: true };
+  },
+
   async signOut() {
     if (!this.client) return;
     await this.client.auth.signOut();

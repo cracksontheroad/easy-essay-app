@@ -4153,15 +4153,77 @@ function openAuthModal() {
 }
 function closeAuthModal() { closeModalEl("authModal"); }
 
-async function _handleMagicLink() {
+async function _handleMagicLink(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
   const r = $("#authResult");
   const email = ($("#authEmailInput")?.value || "").trim();
   r.className = "status-line";
-  r.textContent = "Sending…";
+  r.textContent = "Sending magic link…";
   try {
     await window.Sb.signInWithMagicLink(email);
     r.className = "status-line ok";
     r.textContent = "✓ Magic link sent. Check your email (and spam folder). Clicking the link signs you in here.";
+  } catch (err) {
+    r.className = "status-line err";
+    r.textContent = "Failed: " + err.message;
+  }
+}
+
+/* Email + password sign-in (existing accounts). */
+async function _handlePasswordSignIn() {
+  const r = $("#authResult");
+  const email = ($("#authEmailInput")?.value || "").trim();
+  const password = ($("#authPasswordInput")?.value || "");
+  r.className = "status-line";
+  r.textContent = "Signing in…";
+  try {
+    await window.Sb.signInWithPassword(email, password);
+    // supabase:auth-change handler will close the modal + run migration
+  } catch (err) {
+    r.className = "status-line err";
+    r.textContent = err.message;
+  }
+}
+
+/* Create new account with email + password. */
+async function _handlePasswordSignUp() {
+  const r = $("#authResult");
+  const email = ($("#authEmailInput")?.value || "").trim();
+  const password = ($("#authPasswordInput")?.value || "");
+  r.className = "status-line";
+  r.textContent = "Creating account…";
+  try {
+    const res = await window.Sb.signUpWithPassword(email, password);
+    if (res.sent) {
+      r.className = "status-line ok";
+      r.textContent = "✓ Account created. Check your email to confirm, then come back to sign in.";
+    } else {
+      r.className = "status-line ok";
+      r.textContent = "✓ Account created and signed in. Welcome!";
+      // supabase:auth-change handler closes the modal
+    }
+  } catch (err) {
+    r.className = "status-line err";
+    r.textContent = err.message;
+  }
+}
+
+/* Send password-reset email. */
+async function _handlePasswordReset(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  const r = $("#authResult");
+  const email = ($("#authEmailInput")?.value || "").trim();
+  if (!email) {
+    r.className = "status-line err";
+    r.textContent = "Type your email above first, then click 'Forgot password?' again.";
+    return;
+  }
+  r.className = "status-line";
+  r.textContent = "Sending reset email…";
+  try {
+    await window.Sb.sendPasswordReset(email);
+    r.className = "status-line ok";
+    r.textContent = "✓ Password reset email sent. Check your inbox (and spam).";
   } catch (err) {
     r.className = "status-line err";
     r.textContent = "Failed: " + err.message;
@@ -4261,12 +4323,17 @@ function wireAuth() {
   $("#authCloseX")?.addEventListener("click", closeAuthModal);
   $("#authMagicBtn")?.addEventListener("click", _handleMagicLink);
   $("#authGoogleBtn")?.addEventListener("click", _handleGoogleSignIn);
+  $("#authSignInBtn")?.addEventListener("click", _handlePasswordSignIn);
+  $("#authSignUpBtn")?.addEventListener("click", _handlePasswordSignUp);
+  $("#authResetBtn")?.addEventListener("click", _handlePasswordReset);
   $("#userMenuBtn")?.addEventListener("click", _handleSignOut);
 
-  // Pressing Enter in the email field submits the magic link
-  $("#authEmailInput")?.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter") { ev.preventDefault(); _handleMagicLink(); }
-  });
+  // Pressing Enter in either field signs in by password (primary action).
+  const enterSubmit = (ev) => {
+    if (ev.key === "Enter") { ev.preventDefault(); _handlePasswordSignIn(); }
+  };
+  $("#authEmailInput")?.addEventListener("keydown", enterSubmit);
+  $("#authPasswordInput")?.addEventListener("keydown", enterSubmit);
 }
 
 /* ============== AUTH GATE (Option B — sign-in required to write) ==============
