@@ -29,3 +29,6 @@ yarn-error.log*
 
 # Local Netlify folder
 .netlify
+
+# Claude Code per-project local settings (machine-specific, never commit)
+.claude/settings.local.json

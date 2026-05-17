@@ -4303,30 +4303,11 @@ function updateAuthUI() {
 }
 
 function openAuthModal() {
-  // Refresh the iframe-warning banner each open
-  const banner = $("#authIframeBanner");
-  if (banner) banner.hidden = !window.Sb?.inIframe();
   setText($("#authResult"), "");
   openModalEl("authModal");
   setTimeout(() => $("#authEmailInput")?.focus(), 60);
 }
 function closeAuthModal() { closeModalEl("authModal"); }
-
-async function _handleMagicLink(ev) {
-  if (ev && ev.preventDefault) ev.preventDefault();
-  const r = $("#authResult");
-  const email = ($("#authEmailInput")?.value || "").trim();
-  r.className = "status-line";
-  r.textContent = "Sending magic link…";
-  try {
-    await window.Sb.signInWithMagicLink(email);
-    r.className = "status-line ok";
-    r.textContent = "✓ Magic link sent. Check your email (and spam folder). Clicking the link signs you in here.";
-  } catch (err) {
-    r.className = "status-line err";
-    r.textContent = "Failed: " + err.message;
-  }
-}
 
 /* Email + password sign-in (existing accounts). */
 async function _handlePasswordSignIn() {
@@ -4354,8 +4335,12 @@ async function _handlePasswordSignUp() {
   try {
     const res = await window.Sb.signUpWithPassword(email, password);
     if (res.sent) {
+      // Email confirmation is enabled on the project but email may not arrive
+      // (free-tier deliverability). User can still keep using the app locally;
+      // we'll auto-sign-in on the next visit once they click the confirm link
+      // — OR they can just keep working without an account.
       r.className = "status-line ok";
-      r.textContent = "✓ Account created. Check your email to confirm, then come back to sign in.";
+      r.textContent = "✓ Account created. Keep using the app — your work is saved locally. If a confirmation email arrives, click the link to enable cross-device sync.";
     } else {
       r.className = "status-line ok";
       r.textContent = "✓ Account created and signed in. Welcome!";
@@ -4367,52 +4352,11 @@ async function _handlePasswordSignUp() {
   }
 }
 
-/* Send password-reset email. */
-async function _handlePasswordReset(ev) {
-  if (ev && ev.preventDefault) ev.preventDefault();
-  const r = $("#authResult");
-  const email = ($("#authEmailInput")?.value || "").trim();
-  if (!email) {
-    r.className = "status-line err";
-    r.textContent = "Type your email above first, then click 'Forgot password?' again.";
-    return;
-  }
-  r.className = "status-line";
-  r.textContent = "Sending reset email…";
-  try {
-    await window.Sb.sendPasswordReset(email);
-    r.className = "status-line ok";
-    r.textContent = "✓ Password reset email sent. Check your inbox (and spam).";
-  } catch (err) {
-    r.className = "status-line err";
-    r.textContent = "Failed: " + err.message;
-  }
-}
-async function _handleGoogleSignIn() {
-  const r = $("#authResult");
-  r.className = "status-line"; r.textContent = "Opening Google…";
-  try {
-    const res = await window.Sb.signInWithGoogle();
-    if (res?.newTab) {
-      r.className = "status-line";
-      r.textContent = "Google sign-in opened in a new tab. Come back here once you're signed in.";
-    }
-  } catch (err) {
-    r.className = "status-line err";
-    r.textContent = "Failed: " + err.message;
-  }
-}
-
 async function _handleSignOut() {
-  if (!confirm("Sign out? Your local browser copy stays, but auto-sync stops until you sign in again.")) return;
+  if (!confirm("Sign out? Your work stays in this browser; cloud sync stops.")) return;
   await window.Sb.signOut();
-  toast("Signed out.");
+  toast("Signed out. App is still fully usable — your work is saved locally.");
   updateAuthUI();
-  // Option B — you can't be editing an essay without a session. If they're
-  // in a workspace when they sign out, send them back to the home page.
-  if (document.querySelector("#view-essay.active")) {
-    switchView("home");
-  }
 }
 
 /* On first successful sign-in, migrate any local-only essays/settings to
@@ -4480,11 +4424,8 @@ function wireAuth() {
 
   $("#signInBtn")?.addEventListener("click", openAuthModal);
   $("#authCloseX")?.addEventListener("click", closeAuthModal);
-  $("#authMagicBtn")?.addEventListener("click", _handleMagicLink);
-  $("#authGoogleBtn")?.addEventListener("click", _handleGoogleSignIn);
   $("#authSignInBtn")?.addEventListener("click", _handlePasswordSignIn);
   $("#authSignUpBtn")?.addEventListener("click", _handlePasswordSignUp);
-  $("#authResetBtn")?.addEventListener("click", _handlePasswordReset);
   $("#userMenuBtn")?.addEventListener("click", _handleSignOut);
 
   // Pressing Enter in either field signs in by password (primary action).
@@ -4504,23 +4445,11 @@ function wireAuth() {
  * so a returning signed-in student is not asked to re-authenticate — the
  * gate just refuses anonymous essay access.
  */
-function requireAuth(actionLabel) {
-  // If the auth module genuinely failed to load, don't brick the whole app —
-  // fall back to local-only mode with a console warning. (Deploy bug, rare.)
-  if (!window.Sb) {
-    console.warn("Supabase auth module not loaded — proceeding in local-only mode.");
-    return true;
-  }
-  if (window.Sb.isSignedIn()) return true;
-
-  // Not signed in — open the auth modal with a contextual nudge.
-  openAuthModal();
-  const r = $("#authResult");
-  if (r) {
-    r.className = "status-line";
-    r.textContent = `Please sign in to ${actionLabel || "continue"} — it takes about 20 seconds and saves your work to the cloud so it's never lost, even if you switch devices or clear your browser.`;
-  }
-  return false;
+function requireAuth(_actionLabel) {
+  // Auth is now optional. The app works fully from localStorage; cloud sync
+  // is a separate, opt-in feature wired via the "Save to cloud" button.
+  // This function exists for back-compat with old call-sites — always allow.
+  return true;
 }
 
 /* ============== AUTOSAVE ==============

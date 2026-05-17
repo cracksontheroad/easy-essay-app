@@ -15,8 +15,8 @@
  *   init()              — call once on page load
  *   isSignedIn()        — boolean
  *   currentUser()       — User object or null
- *   signInWithMagicLink(email)
- *   signInWithGoogle()
+ *   signInWithPassword(email, password)
+ *   signUpWithPassword(email, password)
  *   signOut()
  *   pullAll()           — returns { settings, essays } from server
  *   pushSettings(obj)
@@ -38,13 +38,6 @@ const Sb = {
   client: null,
   user:   null,
   ready:  false,
-
-  /* Detect Wix-iframe scenario — auth flow won't survive third-party
-   * storage blocking. We surface a "Open in own tab" banner instead of
-   * letting users hit a frustrating dead-end. */
-  inIframe() {
-    try { return window.self !== window.top; } catch { return true; }
-  },
 
   init() {
     if (!window.supabase || !window.supabase.createClient) {
@@ -95,46 +88,9 @@ const Sb = {
 
   // ─── Auth flows ─────────────────────────────────────────────────────
 
-  /* Magic-link email sign-in. Sends a one-time email; user clicks the
-   * link, browser redirects back here with the session active. */
-  async signInWithMagicLink(email) {
-    if (!this.client) throw new Error("Auth unavailable — SDK didn't load.");
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new Error("Please enter a valid email address.");
-    }
-    const { error } = await this.client.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin + window.location.pathname,
-        shouldCreateUser: true
-      }
-    });
-    if (error) throw new Error(error.message);
-    return { sent: true };
-  },
-
-  /* Google OAuth — opens Google's sign-in page in a new tab to survive
-   * the X-Frame-Options block that prevents OAuth in iframes. */
-  async signInWithGoogle() {
-    if (!this.client) throw new Error("Auth unavailable.");
-    const redirectTo = window.location.origin + window.location.pathname;
-    const { data, error } = await this.client.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        skipBrowserRedirect: this.inIframe()  // we'll open in new tab if iframed
-      }
-    });
-    if (error) throw new Error(error.message);
-    if (this.inIframe() && data?.url) {
-      window.open(data.url, "_blank", "noopener,noreferrer");
-      return { newTab: true };
-    }
-    return { redirected: true };
-  },
-
-  /* Email + password sign-in. Works server-side regardless of dashboard
-   * config because the email provider is on by default in Supabase. */
+  /* Email + password sign-in. The only auth method this app uses — magic
+   * link and Google OAuth were dropped because of email-deliverability
+   * and OAuth-setup-cost issues. */
   async signInWithPassword(email, password) {
     if (!this.client) throw new Error("Auth unavailable — SDK didn't load.");
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -176,20 +132,6 @@ const Sb = {
       throw new Error(error.message);
     }
     return { confirmed: !!data.session, sent: !data.session };
-  },
-
-  /* Send a password-reset email. User clicks link → lands back on app
-   * with a recovery session active → app should prompt for new password. */
-  async sendPasswordReset(email) {
-    if (!this.client) throw new Error("Auth unavailable.");
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new Error("Please enter a valid email address.");
-    }
-    const { error } = await this.client.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + window.location.pathname
-    });
-    if (error) throw new Error(error.message);
-    return { sent: true };
   },
 
   async signOut() {
