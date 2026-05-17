@@ -947,28 +947,32 @@ textarea.wide { min-height: 110px; }
 /* Scroll-lock: when any modal is open, the background page is frozen. */
 body.modal-open { overflow: hidden; }
 
-/* Auth controls in the top nav */
+/* Auth control in the top nav — single always-visible button.
+ * Violet = signed-out (CTA to save); emerald = signed-in (status pill). */
 .auth-btn, .auth-user {
   margin-left: 4px;
   background: var(--violet-50);
   color: var(--violet-700);
   border: 1px solid var(--violet-200);
   font-weight: 600;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .auth-btn:hover, .auth-user:hover {
   background: var(--violet-100);
   color: var(--violet-800);
 }
-.auth-user {
+.auth-btn.is-signed-in {
   background: var(--emerald-50);
   color: var(--emerald-700);
   border-color: var(--emerald-200);
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.auth-user:hover { background: var(--emerald-100); }
+.auth-btn.is-signed-in:hover {
+  background: var(--emerald-100);
+  color: var(--emerald-800);
+}
 .auth-options { display: flex; flex-direction: column; gap: 8px; }
 /* Lightbox must sit above the chapter/flow modals it can be opened from. */
 #lightbox { z-index: 300; }

@@ -4286,20 +4286,28 @@ saveEssays = function() {
 };
 
 function updateAuthUI() {
-  const signInBtn = $("#signInBtn");
-  const userBtn   = $("#userMenuBtn");
-  if (!signInBtn || !userBtn) return;
+  const btn = $("#signInBtn");
+  if (!btn) return;
   const user = window.Sb?.currentUser();
+  // Always-visible single button. Text + behaviour flip with state so users
+  // can never end up with "no login and no logout" visible at once.
   if (user) {
     const name = user.user_metadata?.name || user.email?.split("@")[0] || "Account";
-    signInBtn.hidden = true;
-    userBtn.hidden = false;
-    userBtn.textContent = "👤 " + name;
-    userBtn.title = `Signed in as ${user.email || "user"}\nClick to sign out`;
+    btn.textContent = `👤 ${name} · Sign out`;
+    btn.title = `Signed in as ${user.email || "user"} — click to sign out`;
+    btn.dataset.signedIn = "1";
+    btn.classList.add("is-signed-in");
   } else {
-    signInBtn.hidden = false;
-    userBtn.hidden = true;
+    btn.textContent = "💾 Save to cloud";
+    btn.title = "Optional: save your work to the cloud for cross-device access";
+    btn.dataset.signedIn = "0";
+    btn.classList.remove("is-signed-in");
   }
+  // Old standalone userMenuBtn is no longer used — keep it permanently hidden
+  // (HTML still contains the element for back-compat with any cached service
+  // worker that hasn't picked up the new HTML yet).
+  const old = $("#userMenuBtn");
+  if (old) old.hidden = true;
 }
 
 function openAuthModal() {
@@ -4422,10 +4430,16 @@ function wireAuth() {
     }
   });
 
-  $("#signInBtn")?.addEventListener("click", openAuthModal);
+  // One button, two behaviours: sign-out if signed in, open modal otherwise.
+  $("#signInBtn")?.addEventListener("click", () => {
+    if (window.Sb?.isSignedIn()) _handleSignOut();
+    else openAuthModal();
+  });
   $("#authCloseX")?.addEventListener("click", closeAuthModal);
   $("#authSignInBtn")?.addEventListener("click", _handlePasswordSignIn);
   $("#authSignUpBtn")?.addEventListener("click", _handlePasswordSignUp);
+  // Legacy back-compat: if cached HTML still has the old #userMenuBtn,
+  // make it sign out so users on a stale service worker aren't stuck.
   $("#userMenuBtn")?.addEventListener("click", _handleSignOut);
 
   // Pressing Enter in either field signs in by password (primary action).
